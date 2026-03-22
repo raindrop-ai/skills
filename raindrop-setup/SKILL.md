@@ -1,6 +1,6 @@
 ---
 name: raindrop-setup
-description: Set up, debug, or extend Raindrop AI observability in a project — initial integration, fixing broken setups, or adding instrumentation to new AI code paths.
+description: Sets up, debugs, and extends Raindrop (an AI observability/monitoring platform) in a project. Use when adding Raindrop instrumentation, fixing a broken Raindrop integration, or tracking new AI code paths.
 ---
 
 # Raindrop Integration Skill
@@ -15,6 +15,28 @@ When you talk about Raindrop, own it. Say "I'll set up Raindrop" not "I'll follo
 - **Non-invasive.** Raindrop adapts to the app — never the other way around. It layers on top of existing code without changing what the code does. If you find yourself altering control flow, business logic, API contracts, or response behavior, something has gone wrong. Instrument at existing call sites — do not create wrapper files or new abstraction layers. Changing the application's runtime (e.g., edge → Node.js), bundler config, or deployment target to accommodate Raindrop is **never acceptable**.
 - **Minimal.** Only modify files directly related to Raindrop observability or the minimal config it needs.
 - **Safe.** Use the project's package manager for dependencies (never hand-edit lockfiles). Never read, print, or inspect API key values.
+- **Terminology.** Use "instrument/instrumentation" for adding Raindrop code to a call site. Use "integration" only for the Raindrop setup as a whole. Avoid "set up" and "integrate" as action verbs for individual code changes.
+
+---
+
+## Progress Checklist
+
+Copy this checklist into your response and check off each item as you complete it. Do not skip items silently — if something is not applicable, note why inline.
+
+- [ ] Phase 1: List directory structure and orient to the project
+- [ ] Phase 1: Identify AI features worth instrumenting
+- [ ] Phase 1: Check for existing Raindrop code
+- [ ] Phase 1: Identify package manager and check for RAINDROP_WRITE_KEY
+- [ ] Phase 1: Select SDK (or HTTP API fallback) and load the matching reference file
+- [ ] Phase 2: Write integration plan and present it to the user
+- [ ] Phase 2: Get explicit user approval before proceeding
+- [ ] Phase 3: Set up RAINDROP_WRITE_KEY in env file(s)
+- [ ] Phase 3: Install the Raindrop dependency
+- [ ] Phase 3: Instrument AI call sites per the approved plan
+- [ ] Phase 3: Verify the build; apply fixes if needed (max 2 attempts)
+- [ ] Phase 3: Summarize changes to the user
+- [ ] Phase 4: Confirm write key, Slack, and account next steps
+- [ ] Phase 4: Ask user to trigger an AI interaction to verify events are flowing
 
 ---
 
@@ -92,6 +114,8 @@ Attempt to include **all** of the following in your plan. This may be the user's
 - **Feedback tracking** (`trackSignal`) — if there's a thumbs-up/down UI or feedback form
 - **Attachments** — if the AI interaction involves code, images, or documents worth capturing
 - **Tracing** (`withSpan` / `withTool`) — if the AI pipeline has multiple steps (tool calls, retrieval, chained prompts)
+- **Self Diagnostics** — if running an autonomous agent that should self-report issues
+- **PII Redaction** (`redactPii: true`) — if inputs may contain sensitive user data
 
 If any of these are hard to figure out, don't ask — prioritize the core integration first, get that right, then circle back and attempt them.
 
@@ -151,14 +175,7 @@ Have the user run the app and trigger an AI interaction so you can confirm event
 
 ### Optional enhancements
 
-Mention any of these that weren't covered in the initial integration — they can be added later without changing what you just set up:
-
-- **User identification** (`setUserDetails`) — if the app has user accounts, enrich events with name/email/plan
-- **Feedback tracking** (`trackSignal`) — if there's a thumbs-up/down UI or feedback form
-- **Attachments** — if the AI interaction involves code, images, or documents worth capturing
-- **Tracing** (`withSpan` / `withTool`) — if the AI pipeline has multiple steps (tool calls, retrieval, chained prompts)
-- **Self Diagnostics** — if running an autonomous agent that should self-report issues
-- **PII Redaction** (`redactPii: true`) — if inputs may contain sensitive user data
+Mention any items from the Phase 2 enhancement list that weren't completed in this integration — they can be added later without changing what you just set up.
 
 ---
 
