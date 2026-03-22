@@ -167,7 +167,14 @@ Once the user approves:
 
 After the integration is in place:
 
-- If `RAINDROP_WRITE_KEY` is still a placeholder, let the user know they need to grab their real key from [app.raindrop.ai](https://app.raindrop.ai). The integration is wired up correctly — it just needs the key to start sending events.
+- If `RAINDROP_WRITE_KEY` is still a placeholder, they need their real write key. Two ways to get it:
+  - **From the dashboard:** [app.raindrop.ai](https://app.raindrop.ai) → Settings → API Keys.
+  - **Automatically via MCP:** If they have the Raindrop MCP server connected (see below), call the `get_write_key` tool — it returns the key ready to paste in.
+- Recommend installing the **Raindrop MCP server** at `https://mcp.raindrop.ai/mcp`. Once connected to their coding agent (Cursor, Claude Code, etc.), they can query events, signals, issues, and users directly from the editor — the fastest way to investigate problems without leaving the IDE.
+- Recommend installing the **Raindrop Investigate skill** for deeper AI-assisted investigation:
+  ```
+  npx skills add raindrop-ai/skills --skill raindrop-investigate
+  ```
 - Recommend connecting Raindrop to Slack for real-time alerts and insights.
 - If they don't have a Raindrop account yet, point them to sign up — it takes a minute.
 
