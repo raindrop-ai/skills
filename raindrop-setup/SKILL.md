@@ -27,7 +27,7 @@ Copy this checklist into your response and check off each item as you complete i
 - [ ] Phase 1: Identify AI features worth instrumenting
 - [ ] Phase 1: Check for existing Raindrop code
 - [ ] Phase 1: Identify package manager and check for RAINDROP_WRITE_KEY
-- [ ] Phase 1: Select SDK (or HTTP API fallback) and load the matching reference file
+- [ ] Phase 1: Match a Raindrop integration (or fall back to base SDK / HTTP API) and load the matching reference file
 - [ ] Phase 2: Write integration plan and present it to the user
 - [ ] Phase 2: Get explicit user approval before proceeding
 - [ ] Phase 3: Set up RAINDROP_WRITE_KEY in env file(s)
@@ -60,38 +60,77 @@ If it is not obvious which AI feature to instrument, ask the user what they are 
 
 If no AI features are found, say so and stop.
 
-### Selecting the SDK
+### Selecting the integration or SDK
 
-Choose the SDK based on the **runtime of the AI feature you are instrumenting**, not the repo overall. Use the most specific match:
+Raindrop offers two paths:
 
-| Priority | SDK | Detection |
-|----------|-----|-----------|
-| 1 | **Python** | `.py` files with AI imports (`openai`, `anthropic`, `langchain`, `litellm`, etc.) or AI packages in `requirements.txt`/`pyproject.toml`/`Pipfile` |
-| 2 | **Vercel AI SDK** | Imports from `'ai'`, `'ai/rsc'`, or `'@ai-sdk/'` in `.ts`/`.tsx`/`.js`/`.jsx` files |
-| 3 | **Claude Agent SDK** | Imports from `'@anthropic-ai/claude-agent-sdk'` |
-| 4 | **TypeScript** (general) | `tsconfig.json` exists, `.ts`/`.tsx` files, or `typescript` in `package.json` |
-| 5 | **Browser/Edge** | Client-side AI calls in browser code, `wrangler.toml` for Cloudflare Workers, or `export const runtime = 'edge'` |
+1. **First-party framework integrations** — drop-in wrappers for popular AI SDKs and agent frameworks. Wrap once, get events and traces automatically. Prefer these when the project uses a framework Raindrop supports — they are the fastest, most complete way to instrument.
+2. **Base SDK** — manual `begin()` / `finish()` instrumentation at each AI call site. Use when no integration matches, or when the user explicitly wants the raw SDK.
 
-If multiple patterns match and it is ambiguous, describe what you found and ask the user.
+Match against the **runtime of the AI feature you are instrumenting**, not the repo overall.
 
-### Fallback: HTTP API
+#### Step 1: Match a Raindrop integration
 
-If **no SDK supports the target runtime or framework**, do not change the application's runtime or architecture to fit an SDK. Instead, use Raindrop's HTTP API directly. Read `references/http-api.md` for the endpoints and payload format, then build a minimal client (a single function or small module) that posts events over HTTP. This is the correct path for unsupported runtimes — it keeps the integration non-invasive.
+Scan the project's imports and dependency manifests for a framework Raindrop integrates with. If you find one, that's the path.
 
-### Loading the SDK Reference
+**TypeScript / Node.js**
 
-Read **only** the single reference file matching the selected SDK (or the HTTP API fallback) from the `references/` directory adjacent to this skill:
+| Framework signal | Reference file |
+|---|---|
+| `import ... from 'ai'` / `'ai/rsc'` / `'@ai-sdk/...'` | `references/vercel-ai-sdk.md` |
+| `import ... from '@anthropic-ai/claude-agent-sdk'` | `references/claude-agent-sdk.md` |
+| `@anthropic-ai/sdk` **and** `client.beta.sessions` / `client.beta.agents` / `client.beta.environments` (Claude managed agent runtime). Plain `client.messages.create` does **not** count — for that, use `references/typescript.md`. | `references/claude-managed-agents.md` |
+| `import ... from '@openai/agents'` | `references/openai-agents-typescript.md` |
+| `import ... from '@langchain/...'` / `'langchain'` / `'@langchain/langgraph'` | `references/langchain-typescript.md` |
+| `import ... from '@mastra/core'` | `references/mastra.md` |
+| `import ... from 'deepagents'` (TS) | `references/deep-agents-typescript.md` |
+| `import ... from '@strands-agents/sdk'` | `references/strands-typescript.md` |
+| `import ... from '@aws-sdk/client-bedrock-runtime'` | `references/bedrock-typescript.md` |
+| `import ... from '@google/genai'` | `references/vertex-ai-typescript.md` |
+| `AzureOpenAI` imported from `openai` (TS) | `references/azure-openai-typescript.md` |
+| `import ... from '@temporalio/worker'` | `references/temporal.md` |
 
-| SDK | Reference file |
-|-----|---------------|
+**Python**
+
+| Framework signal | Reference file |
+|---|---|
+| `from pydantic_ai import ...` | `references/pydantic-ai.md` |
+| `from agents import Agent, Runner` | `references/openai-agents-python.md` |
+| `from langchain...` / `langchain_core` / `langgraph` | `references/langchain-python.md` |
+| `from crewai import ...` | `references/crewai.md` |
+| `import dspy` | `references/dspy.md` |
+| `from google.adk import ...` | `references/google-adk.md` |
+| `from strands import ...` | `references/strands-python.md` |
+| `from deepagents import ...` (Python) | `references/deep-agents-python.md` |
+| `from agno.agent import ...` | `references/agno.md` |
+| `from google import genai` | `references/vertex-ai-python.md` |
+| `boto3.client("bedrock-runtime", ...)` | `references/bedrock-python.md` |
+| `AzureOpenAI` imported from `openai` (Python) | `references/azure-openai-python.md` |
+
+If multiple integrations could match (e.g. LangChain wrapping a Vercel AI SDK call), or it is ambiguous which framework is used for the feature being instrumented, ask the user.
+
+#### Step 2: Fall back to the base SDK
+
+If no integration matches — or the user prefers the raw SDK — pick the base SDK by language. The base SDKs use a `begin()` / `finish()` pattern wrapped around each AI call site.
+
+| Language / runtime | Reference file |
+|---|---|
+| TypeScript / Node.js | `references/typescript.md` |
 | Python | `references/python.md` |
-| TypeScript | `references/typescript.md` |
-| Vercel AI SDK | `references/vercel-ai-sdk.md` |
-| Claude Agent SDK | `references/claude-agent-sdk.md` |
-| Browser/Edge | `references/browser.md` |
-| HTTP API (fallback) | `references/http-api.md` |
+| Go | `references/go.md` |
+| Browser (client-side) | `references/browser.md` |
 
-Follow the reference documentation precisely for API usage, initialization patterns, and configuration.
+Falling back to the base SDK is a fully supported path — don't force-fit an integration when the project doesn't use a matching framework. The SDK gives you full control at the cost of a few extra lines per call site.
+
+#### Step 3: HTTP API as last resort
+
+If no SDK supports the target runtime, use the HTTP API directly: `references/http-api.md`. Build a minimal client (a single function or small module) that posts events over HTTP. This is the correct path for unsupported runtimes — it keeps the integration non-invasive.
+
+### Loading the reference
+
+Read **only** the single reference file you selected above. Follow it precisely for API usage, initialization patterns, and configuration.
+
+Integration reference files cover the wrap-and-go path. If your plan needs APIs not shown there — `trackSignal` for feedback, attachments, manual `withSpan` for nested work, PII redaction, self-diagnostics — also load the matching base-SDK reference (`references/typescript.md` or `references/python.md`) for those APIs. Keep instrumentation in the integration; reach into the base SDK only for the auxiliary calls.
 
 ---
 
@@ -106,7 +145,7 @@ The plan should cover:
 - Any auxiliary data to capture (user identity, conversation IDs, attachments, feedback)
 - Environment variable setup
 
-Attempt to include **all** of the following in your plan. This may be the user's only integration pass — get as much value wired up as possible:
+Attempt to include **all** of the following in your plan. If using an integration, follow the getting started guide for that integration.
 
 - **Core tracking** — `begin()` → `finish()` on AI calls (required)
 - **User identification** (`setUserDetails`) — if the app has user accounts or session data
@@ -117,7 +156,7 @@ Attempt to include **all** of the following in your plan. This may be the user's
 - **Self Diagnostics** — if running an autonomous agent that should self-report issues
 - **PII Redaction** (`redactPii: true`) — if inputs may contain sensitive user data
 
-If any of these are hard to figure out, don't ask — prioritize the core integration first, get that right, then circle back and attempt them.
+For each enhancement: if it's clearly applicable from the code (e.g. there's a visible thumbs-up button → wire `trackSignal`), include it. If you can't tell quickly, skip it and circle back after the core integration is working — don't stall the plan asking about every enhancement.
 
 ### Guardrails
 
