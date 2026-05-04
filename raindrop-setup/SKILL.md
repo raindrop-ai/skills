@@ -42,7 +42,7 @@ Copy this checklist into your response and check off each item as you complete i
 
 ## Phase 1: Explore the Codebase
 
-Get a sense of the project and figure out what needs instrumenting. Start by listing directory contents at the root and one level deep — don't read file contents yet, just orient yourself.
+Build enough understanding to write a plan you'd defend. The list below is *what you need to know*, not a sequence of obligations. If the answer to an item is obvious from the user's prompt, the package manifest, or one grep, record the answer in your findings and skip ahead. The valuable output of this phase is the answers, not the act of checking.
 
 **What to look for:**
 
@@ -62,12 +62,12 @@ If no AI features are found, say so and stop.
 
 ### Selecting the integration or SDK
 
+**Match against the runtime of the AI feature you're instrumenting — not the repo's top-level dependency manifest.** A repo can import an SDK in one package and run the actual AI feature from another package that shells out to a CLI, calls an HTTP API, or uses a different framework entirely. Find the call site first, then match the table against *its* imports.
+
 Raindrop offers two paths:
 
 1. **First-party framework integrations** — drop-in wrappers for popular AI SDKs and agent frameworks. Wrap once, get events and traces automatically. Prefer these when the project uses a framework Raindrop supports — they are the fastest, most complete way to instrument.
 2. **Base SDK** — manual `begin()` / `finish()` instrumentation at each AI call site. Use when no integration matches, or when the user explicitly wants the raw SDK.
-
-Match against the **runtime of the AI feature you are instrumenting**, not the repo overall.
 
 #### Step 1: Match a Raindrop integration
 
@@ -131,6 +131,18 @@ If no SDK supports the target runtime, use the HTTP API directly: `references/ht
 Read **only** the single reference file you selected above. Follow it precisely for API usage, initialization patterns, and configuration.
 
 Integration reference files cover the wrap-and-go path. If your plan needs APIs not shown there — `trackSignal` for feedback, attachments, manual `withSpan` for nested work, PII redaction, self-diagnostics — also load the matching base-SDK reference (`references/typescript.md` or `references/python.md`) for those APIs. Keep instrumentation in the integration; reach into the base SDK only for the auxiliary calls.
+
+---
+
+## Phase 1.5: Disambiguate before planning
+
+Before drafting a plan, name every distinct LLM entry point you found and decide explicitly which to instrument first.
+
+An "entry point" is a place where the app issues an LLM call. Different entry points may live in different packages, different runtimes (SDK vs CLI subprocess vs HTTP), or serve different surfaces (chat UI vs background job vs webhook). They are not interchangeable.
+
+If you found more than one — **stop and ask the user which to instrument**, even if circumstantial evidence suggests one.
+
+If you found exactly one, name it back to the user in one sentence ("instrumenting the chat handler in `src/api/chat.ts`") and proceed. This costs almost nothing and catches misreadings before you write code.
 
 ---
 
@@ -217,7 +229,15 @@ After the integration is in place:
 - Recommend connecting Raindrop to Slack for real-time alerts and insights.
 - If they don't have a Raindrop account yet, point them to sign up — it takes a minute.
 
-Have the user run the app and trigger an AI interaction so you can confirm events are flowing.
+### Verification
+
+A working integration that silently doesn't ship events looks identical to a working one that does. Walk the user through these checks:
+
+1. **Event arrives.** After one AI interaction, an event with the matching `event` name appears in app.raindrop.ai within seconds.
+2. **Input and output populated.** Not empty, not placeholder strings, not the wrong field.
+3. **User and conversation IDs.** Attributed to the right user, grouped under the right conversation.
+4. **Tool spans (if applicable).** Each tool call appears as a nested span with input, output, and duration.
+5. **Properties.** Cost, latency, model, etc. visible on the event.
 
 ### Optional enhancements
 

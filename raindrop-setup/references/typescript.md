@@ -88,6 +88,18 @@ interaction.finish({
 });
 ```
 
+### `begin()` parameters
+
+| Parameter    | Required | Description                                                       |
+| ------------ | -------- | ----------------------------------------------------------------- |
+| `eventId`    | yes      | Stable ID for this event. Generate with `randomUUID()`.           |
+| `event`      | yes      | Descriptive name (e.g. `'chat_message'`, `'code_generation'`).    |
+| `userId`     | yes      | Authenticated user ID from your app.                              |
+| `input`      | no       | User input / prompt.                                              |
+| `model`      | no       | Model name (e.g. `'gpt-4o'`).                                     |
+| `convoId`    | no       | Conversation/thread ID from your app.                             |
+| `properties` | no       | Custom metadata. Values must be primitives — no `null`/`undefined`. |
+
 ### Updating an Interaction
 
 Use `setProperty`, `setProperties`, or `addAttachments` for custom metadata and
