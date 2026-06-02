@@ -7,14 +7,14 @@
 - [Users](#users)
 - [Signals](#signals)
 - [Traces](#traces)
-- [Issues](#issues)
+- [Issues & Stumbles](#issues--stumbles)
 - [Docs & Feedback](#docs--feedback)
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
 **Time ranges:** All tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`) rather than explicit start/end timestamps. Max lookback is 90 days.
 
-**Pagination:** All list tools use `cursor` (not `offset`) for pagination. The cursor is returned in each response.
+**Pagination:** Most list tools use `cursor` (not `offset`) for pagination. `search_stumbles` uses a page number.
 
 ---
 
@@ -194,25 +194,37 @@ Provide `event_id` or `trace_id` — if both are provided, `event_id` takes prec
 
 ---
 
-## Issues
+## Issues & Stumbles
 
 ### `raindrop_list_issues`
-AI-discovered investigation reports. Issues are automatically generated when Raindrop detects patterns worth investigating.
+Issue Detection reports for broader changes in the organization's event distribution. For broad questions such as "what issues happened today?", also call `raindrop_search_stumbles`.
 
-> Note: requires the `new_issues_nav` feature flag to be enabled for your org.
+> Note: Issue Detection requires the Pro plan.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `status` | `"active"` \| `"all"` | `"active"` excludes ignored/rejected issues (default: `"active"`) |
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
+| `period` | string | How far back to look (default: `"90d"`, max: `"90d"`) |
 
 ### `raindrop_get_issue`
-Full AI-generated investigation report. Includes title, description, tags, timeline of events, and related events.
+Full AI-generated investigation report for an Issue Detection distribution change.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `issue_id` | string | Required |
+
+### `raindrop_search_stumbles`
+Search one-off unique failure modes from individual interactions. Stumbles are cases where something bad happened once, not broader changes in the event distribution. For broad questions such as "what issues happened today?", call this alongside `raindrop_list_issues`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | string | Case-insensitive text search across title, subtitle, and description |
+| `created_before` | ISO timestamp | Find Stumbles created before this time |
+| `created_after` | ISO timestamp | Find Stumbles created after this time. Defaults to `max(24h, 2 x cadence_minutes)` |
+| `page` | int (≥1) | Page number (default: 1). Each page returns up to 50 Stumbles |
+
+Returns cadence metadata so callers can describe the result as "as of `<last_run_at>`" instead of implying real-time detection.
 
 ---
 
