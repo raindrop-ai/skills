@@ -220,7 +220,7 @@ Full AI-generated investigation report. Includes title, description, tags, timel
 ## Validation Reports
 
 ### `render_validation_report`
-Render a dataset-backed before/after validation report as an inline PNG plus a trusted Raindrop dataset link. Use after replaying the same cases against a baseline and proposed change. Attach the returned image in the response on the surface where the session originated; this tool does not publish to Slack or another external destination.
+Render a dataset-backed before/after validation report as an inline SVG plus a trusted Raindrop dataset link. Use after replaying the same cases against a baseline and proposed change. Attach the returned image in the response on the surface where the session originated; this tool does not publish to Slack or another external destination.
 
 > Note: requires the `VALIDATION_REPORTS` feature flag.
 
@@ -239,7 +239,7 @@ Render a dataset-backed before/after validation report as an inline PNG plus a t
 | `org` | string | Optional organization reference from `list_organizations` |
 | `project` | string | Optional project ID from `list_projects` |
 
-Returns a text result with the validation metadata and dataset URL followed by an `image/png` MCP content item.
+Returns a text result with the validation metadata and dataset URL followed by an `image/svg+xml` MCP content item.
 
 ---
 
