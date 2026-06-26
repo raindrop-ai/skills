@@ -34,7 +34,7 @@ Paginated event list with optional filters. Sorted most-recent first.
 | `period` | string | How far back to look (default: `"24h"`) |
 
 ### `raindrop_get_event`
-Single event by ID. Returns full input, output, properties, and matched signals.
+Single top-level event by ID. Returns full input, output, properties, matched signals, and a compact `execution` summary. Use its `trace_ids` with `raindrop_get_trace`. `execution` is null when no rich execution projection is available; `trace_ids_truncated: true` means the stored list reached its safety cap.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -180,17 +180,26 @@ Single signal group with its member signals.
 ## Traces
 
 ### `raindrop_get_trace`
-OpenTelemetry trace spans for an event or trace ID. Returns the full span tree: LLM calls, tool calls, and internal spans.
-
-Provide `event_id` or `trace_id` — if both are provided, `event_id` takes precedence.
+Paginated, metadata-only outline for one exact OpenTelemetry trace. Each row retains trace, event, and conversation linkage but omits payloads and attributes. Narrow large traces with filters and follow the returned cursor only as needed. Use `raindrop_get_span_payload` only when exact content is needed.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `event_id` | string | Event ID to get traces for |
-| `trace_id` | string | OpenTelemetry trace ID to look up directly |
+| `trace_id` | string | Required OpenTelemetry trace ID returned by `raindrop_get_event` |
 | `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` | Filter to a specific span type |
 | `status` | `"UNSET"` \| `"OK"` \| `"ERROR"` | Filter by span status — use `"ERROR"` to find failures |
-| `limit` | int (1–200) | Max spans to return (default: 50) |
+| `limit` | int (1–100) | Max outline rows to return (default: 50) |
+| `cursor` | string | Pagination cursor from the previous response |
+
+### `raindrop_get_span_payload`
+Read one bounded slice of a span input, output, or attributes after `raindrop_get_trace` identifies the relevant span. Follow `next_offset` only when more content is needed.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `trace_id` | string | Required OpenTelemetry trace ID |
+| `span_id` | string | Required span ID returned by `raindrop_get_trace` |
+| `target` | `"input"` \| `"output"` \| `"attributes"` | Span content to read |
+| `offset` | int | Character offset (default: 0) |
+| `max_chars` | int (1–32000) | Maximum characters to return (default: 8000) |
 
 ---
 
