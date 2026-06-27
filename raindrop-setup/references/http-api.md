@@ -36,6 +36,18 @@ Content-Type: application/json
 
 ---
 
+## Selecting a project
+
+To send data to a specific [project](https://raindrop.ai/docs/platform/projects), include its slug in the `X-Raindrop-Project-Id` header:
+
+```
+X-Raindrop-Project-Id: support-prod
+```
+
+Single-project orgs need nothing here: when the header is omitted, empty, or set to `default`, the request resolves to the org's default **Production** project, which is the existing behavior. A new slug your org hasn't created yet is accepted and starts collecting data, up to a per-org limit; an archived slug, or a new slug beyond that limit, is rejected with a `403`, and a malformed slug returns a `400`. See the [Projects docs](https://raindrop.ai/docs/platform/projects) for the full behavior table.
+
+---
+
 ## Endpoints
 
 ### POST `events/track`

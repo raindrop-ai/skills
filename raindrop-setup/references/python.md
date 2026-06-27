@@ -42,6 +42,16 @@ raindrop.init(os.getenv("RAINDROP_WRITE_KEY"))
 #              bypass_otel_for_tools=True)
 ```
 
+### Projects
+
+Pass `project_id` to `raindrop.init(...)` to scope every event to a specific [project](https://raindrop.ai/docs/platform/projects). Under the hood this sets the `X-Raindrop-Project-Id` header on each request.
+
+```python
+raindrop.init(os.getenv("RAINDROP_WRITE_KEY"), project_id="support-prod")
+```
+
+Single-project orgs need nothing here: omitting `project_id` (or passing `"default"`) sends to the org's default **Production** project, which is the existing behavior. Multi-project orgs pass the target project's slug. See the [Projects docs](https://raindrop.ai/docs/platform/projects) for isolation, archival, and the full behavior table.
+
 ### Tracking AI Interactions
 
 Use the `track_ai` function to track AI interactions. Parameters:

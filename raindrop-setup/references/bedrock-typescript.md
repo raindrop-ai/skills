@@ -56,6 +56,19 @@ const result = await wrapped.send(
 await raindrop.flush(); // publish queued events before shutdown
 ```
 
+## Projects
+
+Route events to a specific [project](https://raindrop.ai/docs/platform/projects) by passing its slug as `projectId`:
+
+```typescript
+const raindrop = createRaindropBedrock({
+  writeKey: process.env.RAINDROP_WRITE_KEY!,
+  projectId: "support-prod",
+});
+```
+
+This sets the `X-Raindrop-Project-Id` header on every event. Single-project orgs need nothing here: omit `projectId` (or pass `"default"`) to use the org's default **Production** project, which is the existing behavior. Multi-project orgs pass the target project's slug. See the [Projects docs](https://raindrop.ai/docs/platform/projects) for the full behavior table.
+
 ## Notes
 
 - Use the wrapped client for all subsequent `.send(...)` calls — the unwrapped one is unobserved.

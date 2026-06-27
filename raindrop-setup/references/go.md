@@ -68,6 +68,19 @@ func main() {
 - **`WithSpan`** captures nested work (retrieval, tool calls, chained prompts) so the trace shows the structure.
 - **`Close()`** must run before process exit — typically via `defer` — to flush queued events. Skipping it drops trailing events.
 
+## Projects
+
+Scope all telemetry from a client to a specific [project](https://raindrop.ai/docs/platform/projects) with the `WithProjectID` option. It sets the `X-Raindrop-Project-Id` header on every outbound request.
+
+```go
+raindropClient, err := raindrop.New(
+    raindrop.WithWriteKey(os.Getenv("RAINDROP_WRITE_KEY")),
+    raindrop.WithProjectID("support-prod"),
+)
+```
+
+Single-project orgs need nothing here: omit the option (or pass `"default"`) to use the org's default **Production** project, which is the existing behavior. Multi-project orgs pass the target project's slug. An invalid slug is ignored with a warning and no header is sent, so telemetry never breaks. See the [Projects docs](https://raindrop.ai/docs/platform/projects) for the full behavior table.
+
 ## Auxiliary tracking
 
 - **User identity** — set `UserID` on `BeginOptions`. If you have an email or display name, capture them as event properties.

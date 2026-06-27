@@ -52,6 +52,19 @@ const result = await agent("Hello, world!");
 await raindrop.flush(); // publish queued events before shutdown
 ```
 
+## Projects
+
+Route events to a specific [project](https://raindrop.ai/docs/platform/projects) by passing its slug as `projectId`:
+
+```typescript
+const raindrop = createRaindropStrandsAgents({
+  writeKey: process.env.RAINDROP_WRITE_KEY!,
+  projectId: "support-prod",
+});
+```
+
+This sets the `X-Raindrop-Project-Id` header on every event. Single-project orgs need nothing here: omit `projectId` (or pass `"default"`) to use the org's default **Production** project, which is the existing behavior. Multi-project orgs pass the target project's slug. See the [Projects docs](https://raindrop.ai/docs/platform/projects) for the full behavior table.
+
 ## Notes
 
 - `registerHooks` mutates the agent in place — call it once after creation.

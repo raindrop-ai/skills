@@ -101,3 +101,16 @@ await rd.trackSignal({
   after: 'the corrected final text',
 });
 ```
+
+### Projects
+
+Pass `projectId` to scope events to a specific [project](https://raindrop.ai/docs/platform/projects). This sets the `X-Raindrop-Project-Id` header on each request.
+
+```ts
+const rd = new Raindrop({
+  apiKey: RAINDROP_WRITE_KEY,
+  projectId: 'support-prod',
+});
+```
+
+Single-project orgs need nothing here: omitting `projectId` (or passing `'default'`) sends to the org's default **Production** project, which is the existing behavior. Multi-project orgs pass the target project's slug. See the [Projects docs](https://raindrop.ai/docs/platform/projects) for details.
