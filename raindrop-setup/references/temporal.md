@@ -58,6 +58,19 @@ process.on("SIGINT", async () => {
 await worker.run();
 ```
 
+## Projects
+
+Route events to a specific [project](https://raindrop.ai/docs/platform/projects) by passing its slug as `projectId`:
+
+```typescript
+const raindrop = createRaindropTemporal({
+  writeKey: process.env.RAINDROP_WRITE_KEY!,
+  projectId: "support-prod",
+});
+```
+
+This sets the `X-Raindrop-Project-Id` header on every event. Single-project orgs need nothing here: omit `projectId` (or pass `"default"`) to use the org's default **Production** project, which is the existing behavior. Multi-project orgs pass the target project's slug. See the [Projects docs](https://raindrop.ai/docs/platform/projects) for the full behavior table.
+
 ## Notes
 
 - Both interceptors and sinks must be wired — workflows use the workflow-side interceptor module path; activities use the factory.

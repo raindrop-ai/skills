@@ -291,6 +291,21 @@ Call `await raindrop.close()` before the process exits to flush buffered events.
 
 ---
 
+## Projects
+
+Pass `projectId` to scope every event from a client to a specific [project](https://raindrop.ai/docs/platform/projects). Under the hood this sets the `X-Raindrop-Project-Id` header on each request.
+
+```typescript
+const raindrop = new Raindrop({
+  writeKey: process.env.RAINDROP_WRITE_KEY!,
+  projectId: 'support-prod',
+});
+```
+
+Single-project orgs need nothing here: omitting `projectId` (or passing `'default'`) sends to the org's default **Production** project, which is the existing behavior. Multi-project orgs pass the target project's slug. See the [Projects docs](https://raindrop.ai/docs/platform/projects) for isolation, archival, and the full behavior table.
+
+---
+
 ## Tracing
 
 Tracing captures detailed execution information from AI pipelines including

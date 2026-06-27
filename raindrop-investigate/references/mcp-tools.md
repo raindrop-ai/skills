@@ -2,6 +2,7 @@
 
 ## Contents
 
+- [Projects](#projects)
 - [Events](#events)
 - [Conversations](#conversations)
 - [Users](#users)
@@ -15,6 +16,19 @@ Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 **Time ranges:** All tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`) rather than explicit start/end timestamps. Max lookback is 90 days.
 
 **Pagination:** All list tools use `cursor` (not `offset`) for pagination. The cursor is returned in each response.
+
+**Projects:** Every read tool below accepts an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). If your org has only one project you can ignore it: omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project, which is the historical behavior. Multi-project orgs pass a project slug to target one project at a time; call `raindrop_list_projects` to discover the slugs. Reads are isolated per project, so an event, signal, or issue from one project is never returned when scoped to another. An unknown or archived slug is rejected, and a malformed slug is invalid; call `raindrop_list_projects` to see what's available.
+
+---
+
+## Projects
+
+### `raindrop_list_projects`
+List the projects in your organization. Pass a returned `project` value to any read tool's `project` parameter to scope the call to that project. The `is_default` field marks the project used when `project` is omitted. Single-project orgs only ever see the default **Production** project here.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| (none) | | Returns `project` (slug), `name`, and `is_default` for each active project |
 
 ---
 
@@ -32,6 +46,7 @@ Paginated event list with optional filters. Sorted most-recent first.
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal ID |
 | `period` | string | How far back to look (default: `"24h"`) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_event`
 Single event by ID. Returns full input, output, properties, and matched signals.
@@ -39,6 +54,7 @@ Single event by ID. Returns full input, output, properties, and matched signals.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `event_id` | string | Required |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_search_events`
 Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to find events matching a natural language description — this is the primary tool for pattern discovery.
@@ -52,6 +68,7 @@ Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to 
 | `user_id` | string | Filter by user |
 | `event_name` | string | Filter by event name |
 | `period` | string | How far back to search (default: `"24h"`) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_event_count`
 Aggregate event count with filters. Use for quantifying impact.
@@ -63,6 +80,7 @@ Aggregate event count with filters. Use for quantifying impact.
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
 | `period` | string | How far back to count (default: `"24h"`) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_event_timeseries`
 Event counts bucketed by time interval. Use for trend analysis. Ensure `period` is wider than `interval` (e.g., use `"7d"` or wider for daily buckets).
@@ -74,6 +92,7 @@ Event counts bucketed by time interval. Use for trend analysis. Ensure `period` 
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
 | `period` | string | Time range (default: `"7d"`) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_event_facets`
 Top values for a field across events with counts. Use to understand distribution before filtering.
@@ -86,6 +105,7 @@ Top values for a field across events with counts. Use to understand distribution
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
 | `period` | string | How far back to look (default: `"24h"`) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ---
 
@@ -99,6 +119,7 @@ Paginated conversation list. Sorted by most recent message first.
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
 | `user_id` | string | Filter by user |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_conversation`
 Single conversation with full message thread.
@@ -108,6 +129,7 @@ Single conversation with full message thread.
 | `conversation_id` | string | Required |
 | `include_events` | boolean | Include conversation events (default: `true`) |
 | `event_limit` | int (1–100) | Max events to include (default: 50) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ---
 
@@ -123,6 +145,7 @@ Paginated user list.
 | `user_id` | string | Filter to a specific user ID |
 | `order_by` | `"last_seen"` \| `"first_seen"` | Sort field (default: `"last_seen"`) |
 | `order_direction` | `"asc"` \| `"desc"` | Sort direction (default: `"desc"`) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_user`
 Single user with traits, first/last seen timestamps, and event count.
@@ -130,6 +153,7 @@ Single user with traits, first/last seen timestamps, and event count.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `user_id` | string | Required |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ---
 
@@ -141,6 +165,7 @@ Snapshot of your application: event/user/conversation counts with period-over-pe
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `period` | string | Time window (default: `"24h"`) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_list_signals`
 All signals for your organization (topics, regex, instrumented, metrics). Sorted by most recently created.
@@ -149,6 +174,7 @@ All signals for your organization (topics, regex, instrumented, metrics). Sorted
 |-----------|------|-------------|
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_signal`
 Signal metadata + occurrence count + timeseries trend in a single call. Use to understand a signal's scope and trajectory before diving into events.
@@ -157,6 +183,7 @@ Signal metadata + occurrence count + timeseries trend in a single call. Use to u
 |-----------|------|-------------|
 | `signal_id` | string | Required |
 | `period` | string | Time window for counts and timeseries (default: `"24h"`) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 Returns: signal definition, `occurrence_count`, and a `timeseries` array (hourly for periods ≤24h, daily otherwise).
 
@@ -167,6 +194,7 @@ Signal groups for your organization. Groups are collections of related signals (
 |-----------|------|-------------|
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_signal_group`
 Single signal group with its member signals.
@@ -174,6 +202,7 @@ Single signal group with its member signals.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `group_id` | string | Required |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ---
 
@@ -191,6 +220,7 @@ Provide `event_id` or `trace_id` — if both are provided, `event_id` takes prec
 | `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` | Filter to a specific span type |
 | `status` | `"UNSET"` \| `"OK"` \| `"ERROR"` | Filter by span status — use `"ERROR"` to find failures |
 | `limit` | int (1–200) | Max spans to return (default: 50) |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ---
 
@@ -206,6 +236,7 @@ AI-discovered investigation reports. Issues are automatically generated when Rai
 | `status` | `"active"` \| `"all"` | `"active"` excludes ignored/rejected issues (default: `"active"`) |
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_get_issue`
 Full AI-generated investigation report. Includes title, description, tags, timeline of events, and related events.
@@ -213,6 +244,7 @@ Full AI-generated investigation report. Includes title, description, tags, timel
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `issue_id` | string | Required |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ---
 
