@@ -9,6 +9,7 @@
 - [Signals](#signals)
 - [Traces](#traces)
 - [Issues](#issues)
+- [Memories](#memories)
 - [Docs & Feedback](#docs--feedback)
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
@@ -244,6 +245,51 @@ Full AI-generated investigation report. Includes title, description, tags, timel
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `issue_id` | string | Required |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+---
+
+## Memories
+
+### `raindrop_list_memories`
+List Raindrop memories visible to the selected project. Organization memories are shared across the organization; users, product, agent, and guidance memories are project-scoped.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+### `raindrop_create_memory`
+Create a Raindrop memory. Use category `organization` for org-wide facts. All other categories are saved to the selected project. Guidance memories require `applies_to`.
+
+OAuth callers need the `write:memories` scope. API-key callers can write memories.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `category` | `"organization"` \| `"users"` \| `"product"` \| `"agent"` \| `"guidance"` | Memory category |
+| `text` | string | Memory text |
+| `applies_to` | string[] | Required for guidance memories. Known values: `issue_detection`, `stumbles`, `digest_agent` |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+### `raindrop_update_memory`
+Update a Raindrop memory's text. For guidance memories, pass `applies_to` to replace which product surfaces use it.
+
+OAuth callers need the `write:memories` scope. API-key callers can write memories.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | UUID | Memory ID |
+| `text` | string | Updated memory text |
+| `applies_to` | string[] | Optional replacement consumers for guidance memories. Known values: `issue_detection`, `stumbles`, `digest_agent` |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+### `raindrop_delete_memory`
+Delete a Raindrop memory from the selected organization and project scope.
+
+OAuth callers need the `write:memories` scope. API-key callers can delete memories.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | UUID | Memory ID |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ---
