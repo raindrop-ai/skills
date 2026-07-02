@@ -7,6 +7,7 @@ Open-source skills for integrating [Raindrop](https://raindrop.ai) into your AI 
 ```bash
 npx skills add raindrop-ai/skills --skill raindrop-setup
 npx skills add raindrop-ai/skills --skill raindrop-investigate
+npx skills add raindrop-ai/skills --skill raindrop-ai-sdk-v7
 ```
 
 ## Available skills
@@ -15,6 +16,7 @@ npx skills add raindrop-ai/skills --skill raindrop-investigate
 |-------|-------------|
 | [`raindrop-setup`](./raindrop-setup/) | Set up, debug, or extend Raindrop observability in a project. |
 | [`raindrop-investigate`](./raindrop-investigate/) | Investigate and triage issues in AI applications using Raindrop's MCP tools. |
+| [`raindrop-ai-sdk-v7`](./raindrop-ai-sdk-v7/) | Integrate Raindrop with Vercel AI SDK v7 (beta/canary) and fix v7-specific telemetry gaps. |
 
 ## About Raindrop
 
