@@ -9,6 +9,7 @@
 - [Signals](#signals)
 - [Traces](#traces)
 - [Issues](#issues)
+- [Validation Reports](#validation-reports)
 - [Docs & Feedback](#docs--feedback)
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
@@ -245,6 +246,32 @@ Full AI-generated investigation report. Includes title, description, tags, timel
 |-----------|------|-------------|
 | `issue_id` | string | Required |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+---
+
+## Validation Reports
+
+### `render_validation_report`
+Render a dataset-backed before/after validation report as an inline SVG plus a trusted Raindrop dataset link. Use after replaying the same cases against a baseline and proposed change. Attach the returned image in the response on the surface where the session originated; this tool does not publish to Slack or another external destination.
+
+> Note: requires the `VALIDATION_REPORTS` feature flag.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `dataset_id` | UUID | Raindrop dataset containing the validation cases |
+| `title` | string | Short name for the behavior being validated |
+| `status` | `"passed"` \| `"partial"` \| `"failed"` | Overall validation result |
+| `summary` | string | One-sentence explanation of how cases were selected and replayed |
+| `conclusion` | string | One-sentence conclusion supported by the results |
+| `before` | object | Baseline `{ label, passed, total, note }` metric |
+| `after` | object | Candidate `{ label, passed, total, note }` metric |
+| `replay_script` | string | Optional repository-relative replay script path |
+| `local_command` | string | Optional local replay command |
+| `synced_trace_count` | integer | Number of validation traces written back to Raindrop |
+| `org` | string | Optional organization reference from `list_organizations` |
+| `project` | string | Optional project ID from `list_projects` |
+
+Returns a text result with the validation metadata and dataset URL followed by an `image/svg+xml` MCP content item.
 
 ---
 
