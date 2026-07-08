@@ -19,6 +19,8 @@ Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
 **Projects:** Every read tool below accepts an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). If your org has only one project you can ignore it: omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project, which is the historical behavior. Multi-project orgs pass a project slug to target one project at a time; call `raindrop_list_projects` to discover the slugs. Reads are isolated per project, so an event, signal, or issue from one project is never returned when scoped to another. An unknown or archived slug is rejected, and a malformed slug is invalid; call `raindrop_list_projects` to see what's available.
 
+**Event filters:** The event tools (`list_events`, `search_events`, `get_event_count`, `get_event_timeseries`, `get_event_facets`) share a common set of filters. `model` filters on the AI model name (the `ai_model` column). `feature_flags`, `properties`, and `user_traits` are key/value map filters: each is an array of `{ key, op, value }` objects where `op` is `"eq"` or `"neq"`. Use `get_event_facets` (e.g. `field: "ai_model"`) or `get_event` on a sample to discover available values before filtering.
+
 ---
 
 ## Projects
@@ -45,6 +47,10 @@ Paginated event list with optional filters. Sorted most-recent first.
 | `convo_id` | string | Filter by conversation |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal ID |
+| `model` | string | Filter by AI model name (e.g. `"gpt-4o"`, `"claude-sonnet-4-5-20250929"`) |
+| `feature_flags` | array<{key, op, value}> | Filter by feature flags; `op` is `"eq"`/`"neq"` |
+| `properties` | array<{key, op, value}> | Filter by arbitrary event properties; `op` is `"eq"`/`"neq"` |
+| `user_traits` | array<{key, op, value}> | Filter by user traits; `op` is `"eq"`/`"neq"` |
 | `period` | string | How far back to look (default: `"24h"`) |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
@@ -57,7 +63,7 @@ Single event by ID. Returns full input, output, properties, and matched signals.
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ### `raindrop_search_events`
-Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to find events matching a natural language description — this is the primary tool for pattern discovery.
+Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to find events matching a natural language description — this is the primary tool for pattern discovery. Note: `mode: "semantic"` only honors `user_id`, `convo_id`, `event_name`, and `period`; passing `signal_id`, `model`, `feature_flags`, `properties`, or `user_traits` with semantic mode returns an error — use `mode: "text"` or `mode: "regex"` for those filters.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -66,7 +72,13 @@ Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to 
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
 | `user_id` | string | Filter by user |
+| `convo_id` | string | Filter by conversation |
 | `event_name` | string | Filter by event name |
+| `signal_id` | string | Filter by signal ID |
+| `model` | string | Filter by AI model name (text/regex modes only) |
+| `feature_flags` | array<{key, op, value}> | Filter by feature flags (text/regex modes only) |
+| `properties` | array<{key, op, value}> | Filter by arbitrary event properties (text/regex modes only) |
+| `user_traits` | array<{key, op, value}> | Filter by user traits (text/regex modes only) |
 | `period` | string | How far back to search (default: `"24h"`) |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
@@ -79,6 +91,10 @@ Aggregate event count with filters. Use for quantifying impact.
 | `convo_id` | string | Filter by conversation |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
+| `model` | string | Filter by AI model name |
+| `feature_flags` | array<{key, op, value}> | Filter by feature flags; `op` is `"eq"`/`"neq"` |
+| `properties` | array<{key, op, value}> | Filter by arbitrary event properties; `op` is `"eq"`/`"neq"` |
+| `user_traits` | array<{key, op, value}> | Filter by user traits; `op` is `"eq"`/`"neq"` |
 | `period` | string | How far back to count (default: `"24h"`) |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
@@ -91,6 +107,10 @@ Event counts bucketed by time interval. Use for trend analysis. Ensure `period` 
 | `user_id` | string | Filter by user |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
+| `model` | string | Filter by AI model name |
+| `feature_flags` | array<{key, op, value}> | Filter by feature flags; `op` is `"eq"`/`"neq"` |
+| `properties` | array<{key, op, value}> | Filter by arbitrary event properties; `op` is `"eq"`/`"neq"` |
+| `user_traits` | array<{key, op, value}> | Filter by user traits; `op` is `"eq"`/`"neq"` |
 | `period` | string | Time range (default: `"7d"`) |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
@@ -99,11 +119,15 @@ Top values for a field across events with counts. Use to understand distribution
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `field` | `"event_name"` \| `"user_id"` \| `"signal_id"` | Field to facet |
+| `field` | `"event_name"` \| `"user_id"` \| `"signal_id"` \| `"ai_model"` | Field to facet |
 | `limit` | int (1–100) | Top N values (default: 20) |
 | `user_id` | string | Filter by user |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
+| `model` | string | Filter by AI model name |
+| `feature_flags` | array<{key, op, value}> | Filter by feature flags; `op` is `"eq"`/`"neq"` |
+| `properties` | array<{key, op, value}> | Filter by arbitrary event properties; `op` is `"eq"`/`"neq"` |
+| `user_traits` | array<{key, op, value}> | Filter by user traits; `op` is `"eq"`/`"neq"` |
 | `period` | string | How far back to look (default: `"24h"`) |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
