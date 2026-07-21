@@ -9,6 +9,7 @@
 - [Signals](#signals)
 - [Traces](#traces)
 - [Issues](#issues)
+- [Stumbles](#stumbles)
 - [Docs & Feedback](#docs--feedback)
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
@@ -227,7 +228,7 @@ Provide `event_id` or `trace_id` — if both are provided, `event_id` takes prec
 ## Issues
 
 ### `raindrop_list_issues`
-AI-discovered investigation reports. Issues are automatically generated when Raindrop detects patterns worth investigating.
+AI-discovered investigation reports for **broad shifts in your event distribution** (a tool's error rate climbing, a model overrepresented in failures, a topic spiking). Automatically generated when Raindrop detects a distribution change worth investigating. This catalog does **not** include one-off [Stumbles](#stumbles) — pair it with `raindrop_search_stumbles` for a complete "what's going wrong?" picture.
 
 > Note: requires the `new_issues_nav` feature flag to be enabled for your org.
 
@@ -244,6 +245,25 @@ Full AI-generated investigation report. Includes title, description, tags, timel
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `issue_id` | string | Required |
+| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+---
+
+## Stumbles
+
+Stumbles are **one-off bad experiences** — a single interaction where something went wrong for one user, not a distribution-wide change. This is the counterpart to [Issues](#issues): issues answer "what changed at scale?", stumbles answer "what specific bad experiences did users just have?". The two catalogs don't overlap, so a thorough investigation queries both.
+
+### `raindrop_search_stumbles`
+Search stumbles by keyword or date range. Returns up to 50 per page, sorted most-recent first. Each stumble references the underlying event/interaction, so follow it into `raindrop_get_event`, `raindrop_get_conversation`, and `raindrop_get_trace` to see what actually broke.
+
+The response also includes `cadence_minutes` and `last_run_at`: stumbles are detected on a scan cadence, not in real time, so frame findings as "as of `<last_run_at>`".
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `query` | string | Text to match in stumble title, subtitle, and description (case-insensitive) |
+| `created_after` | string (ISO) | Only stumbles created after this time. Defaults to `max(24h ago, 2 × cadence_minutes ago)` so low-cadence orgs cover at least two scan windows |
+| `created_before` | string (ISO) | Only stumbles created before this time |
+| `page` | int | Page number (default: 1); each page returns up to 50 |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
 ---
