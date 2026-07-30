@@ -39,11 +39,9 @@ List the projects in your organization. Pass a returned `project` value to any r
 ## Events
 
 ### `raindrop_list_events`
-Paginated event list with optional filters. Without `convo_id`, sorted most-recent first (default `period: "30d"`). With `convo_id`, sorted oldest-first and **no time window** — page through every turn via `meta.cursor` until `has_more` is false.
+Paginated event list with optional filters. Each row is a full event: untruncated input/output, model, signals, feature flags, properties, and a `tools` map (`{ count, total_duration_ms?, error_count? }`).
 
-Each row is a shaped full event — untruncated input/output, model, matched signals, feature flags, properties (only `$…` reserved keys stripped), and a `tools` map summarizing tool calls by name (`{ count, total_duration_ms?, error_count? }`).
-
-After `raindrop_get_conversation`, pass the same conversation ID as `convo_id` here to load turns in full instead of calling `raindrop_get_event` per turn.
+Without `convo_id`: newest first, default `period: "30d"`. With `convo_id`: oldest first, no time window — page via `meta.cursor` until `has_more` is false. Use this after `raindrop_get_conversation` instead of calling `raindrop_get_event` per turn.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -137,9 +135,7 @@ Paginated conversation list. Sorted by most recent message first.
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_conversation`
-Conversation overview: metadata (`user_id`, `started_at`, `last_message_at`, `message_count`) plus slim chronological turns — each with its event `id`, `event_name`, `timestamp`, truncated `user_input` / `assistant_output`, and tool-call counts by name. Start here when reading a conversation.
-
-To go deeper, pass the conversation ID to `raindrop_list_events` as `convo_id` for every turn in full, or a turn's `id` to `raindrop_get_trace` for execution spans. The system prompt is not returned here — use `raindrop_get_trace` with `span_type: "SYSTEM_PROMPT"`.
+Conversation overview: metadata plus slim chronological turns (event `id`, `event_name`, `timestamp`, truncated I/O, tool-call counts). Start here, then go deeper with `raindrop_list_events` (`convo_id`) for full turns or `raindrop_get_trace` on a turn's `id`. No system prompt here — use `raindrop_get_trace` with `span_type: "SYSTEM_PROMPT"`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -225,24 +221,18 @@ Single signal group with its member signals.
 
 ### Signal authoring (MCP_SIGNAL)
 
-Create **new code signals** from MCP. Available when the org has the `MCP_SIGNAL` feature flag. Claude/Codex/Cursor open an interactive Raindrop review app; CLI agents use the conversational fallback.
-
-**OAuth:** re-authorize when prompted for the `write:signals` scope. **API keys:** no extra setup.
-
-If these tools are missing from `list_tools`, suggest the user re-authenticate their Raindrop MCP connection.
+Create new code signals from MCP (requires the `MCP_SIGNAL` feature flag). OAuth users re-authorize for the `write:signals` scope; API keys need no setup. If these tools are missing from `list_tools`, suggest the user re-authenticate.
 
 | Tool | Purpose |
 |------|---------|
-| `raindrop_signal_context` | **Call first.** Loads the authoring workflow; get user confirmation before starting. |
-| `raindrop_start_signal_session` | Start authoring. Returns `session_id` + `status: "authoring"`. Same `project` + `session_id` on every later call. |
-| `raindrop_get_signal_session` | Text fallback while authoring (long-polls ~20s). Follow until `reviewing`, `ready`, or `failed`. |
+| `raindrop_signal_context` | **Call first.** Loads the authoring workflow. |
+| `raindrop_start_signal_session` | Start authoring. Returns `session_id` + `status: "authoring"`; reuse the same `project` + `session_id` throughout. |
+| `raindrop_get_signal_session` | Poll while authoring (long-polls ~20s) until `reviewing`, `ready`, or `failed`. |
 | `raindrop_get_signal_session_status` | Lightweight status check. |
-| `raindrop_get_signal_session_code` | Full classifier source — only when the user explicitly asks. |
+| `raindrop_get_signal_session_code` | Classifier source — only when the user explicitly asks. |
 | `raindrop_label_signal_batch` | Label every batch event once (`match` / `no_match` / `skip`). Required before refine or close. |
 | `raindrop_refine_signal_session` | Tighten boundaries after labeling; returns to authoring. |
 | `raindrop_close_signal_session` | `outcome: "create"` + `confirm: true`, or `outcome: "discard"`. Never auto-create. |
-
-**Best practices:** one session per signal; review full event evidence before labels; never infer labels from chat; the review app owns labeling when rendered; explicit Create/Discard checkpoint before close.
 
 ---
 
@@ -255,7 +245,7 @@ Provide `event_id` or `trace_id` — if both are provided, `event_id` takes prec
 
 Pass `span_type: "SYSTEM_PROMPT"` to get the full untruncated system prompt for an event as a single synthetic span.
 
-When the response exceeds the MCP size limit, span payloads are **truncated inline** with a `note` explaining how to narrow — call again with `span_id` (or `span_type` / `status`) to read one payload in full. There is no `too_large` / `retry` handshake.
+Oversized responses come back with span payloads truncated inline and a `note` — call again with `span_id` (or `span_type` / `status`) to read one payload in full.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

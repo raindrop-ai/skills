@@ -39,10 +39,10 @@ If the org has more than one project, call `list_projects` first and pass the re
 
 - `get_issue` — full report for a distribution shift: title, description, affected dimensions (overrepresented tools/models/signals), timeline, related events.
 - `search_stumbles` — find one-off bad experiences by keyword or date range. Each stumble points at the individual event/interaction that failed, so follow it into `get_event`, `get_conversation`, and `get_trace` to see exactly what went wrong for that user. Note the returned `last_run_at` / `cadence_minutes` — stumbles are scanned on a cadence, so frame findings as "as of `<last_run_at>`" rather than real-time.
-- `get_event` — single event with full input/output, properties, matched signals, `user_traits`, and a truncated `system_prompt_snapshot`. Requires `project`. Use for one specific turn; not for bulk conversation reads.
-- `get_conversation` — **wide tier:** conversation metadata plus slim turns (truncated I/O, tool-call counts, each turn's event `id`). Paginate with `page_info.next_cursor`. Requires `project`. No system prompt here.
-- `list_events` — **middle tier:** pass `convo_id` for every turn in full (untruncated I/O, `tools` summary map). Chronological when `convo_id` is set; page via `meta.cursor`. Requires `project`. Optional `include_system_prompt`: per-row snapshots normally; with `convo_id`, one top-level snapshot labeled with `system_prompt_snapshot_turn_id`.
-- `get_trace` — **forensics tier:** full OTEL spans for one event or `trace_id`. Requires `project`. Filter `status: "ERROR"` for failures. Use `span_type: "SYSTEM_PROMPT"` for the full untruncated system prompt. Oversized responses come back with truncated span payloads and a `note` — narrow with `span_id` or `span_type` to read one payload in full.
+- `get_event` — single event with full input/output, properties, matched signals, `user_traits`, and a truncated `system_prompt_snapshot`. For one specific turn, not bulk conversation reads.
+- `get_conversation` — **wide tier:** metadata plus slim truncated turns. Paginate with `page_info.next_cursor`.
+- `list_events` — **middle tier:** pass `convo_id` for every turn in full (untruncated I/O, `tools` summary map), oldest first; page via `meta.cursor`. `include_system_prompt` adds a truncated snapshot.
+- `get_trace` — **forensics tier:** full OTEL spans. `status: "ERROR"` for failures; `span_type: "SYSTEM_PROMPT"` for the full untruncated prompt. Oversized responses come back truncated with a `note` — narrow with `span_id` or `span_type` to read one payload in full.
 
 ### Step 3: Understand — "Why is this happening? How widespread?"
 
@@ -96,25 +96,15 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 
 ### Creating Signals via MCP
 
-Raindrop can **author new code signals** directly from your MCP client (Claude, Codex, Cursor, or CLI). Supporting clients open an interactive Raindrop review UI; CLI agents walk the flow conversationally.
+Author new code signals from your MCP client. Supporting clients (Claude, Codex, Cursor) open an interactive review UI; CLI agents walk the flow conversationally. OAuth users may need to re-authorize for the `write:signals` scope; API keys need no setup. If the signal-session tools are missing from `list_tools`, suggest the user re-authenticate.
 
-**Before you start**
+1. `signal_context` first — confirm project and intent with the user.
+2. `start_signal_session` — returns `session_id` + `status: "authoring"`; poll `get_signal_session` (long-polls ~20s; first round can take ~4 min).
+3. Review the draft: show every batch event with full I/O before labeling.
+4. `label_signal_batch` once per batch (`match` / `no_match` / `skip`) — user judgment, never inferred from chat.
+5. `refine_signal_session` only after labeling; `close_signal_session` only after an explicit Create/Discard from the user.
 
-- Confirm the target **project** with the user if ambiguous — every signal-session call uses the same `project` and the `session_id` from `start_signal_session`.
-- If you authenticate with **OAuth**, re-authorize when prompted so the `write:signals` scope is granted. **Org API keys** need no extra setup.
-- If the signal-session tools are missing from `list_tools`, suggest the user re-authenticate their Raindrop MCP connection.
-- Call `signal_context` first and get explicit user confirmation before `start_signal_session`.
-
-**The pipeline (state machine — do not skip steps)**
-
-1. **Scope** — confirm project; one session UUID for the whole flow.
-2. **Author** — `start_signal_session` with intent (+ optional `name_hint`, `seed_event_ids`). Returns `session_id` and `status: "authoring"`. Poll `get_signal_session` while authoring (each call long-polls ~20s; first round can take ~4 minutes). Do not start a second session or call refine/label/close while authoring.
-3. **Review** — when `reviewing` or `ready`, show name, description, stats, and **every batch event** with full I/O and tool names. Do not summarize evidence away. Show classifier source only after the user asks (`get_signal_session_code`).
-4. **Label** — exactly one `label_signal_batch` covering every event (`match` / `no_match` / `skip`). User judgment via the review app or host AskQuestion — never infer labels from chat prose.
-5. **Refine (optional)** — `refine_signal_session` only **after** labeling; returns to authoring.
-6. **Submit** — explicit Create or Discard checkpoint (review app buttons or AskQuestion). Then `close_signal_session` with `outcome: "create"` + `confirm: true`, or `outcome: "discard"`.
-
-**Invariants:** one session, one project, review before labels, labels before refine, never auto-create.
+One session, one project, review before labels, never auto-create.
 
 ---
 
