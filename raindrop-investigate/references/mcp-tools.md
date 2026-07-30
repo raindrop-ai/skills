@@ -229,7 +229,7 @@ Create **new code signals** from MCP. Available when the org has the `MCP_SIGNAL
 
 **OAuth:** re-authorize when prompted for the `write:signals` scope. **API keys:** no extra setup.
 
-**Tools not listed?** If `raindrop_signal_context` / `raindrop_start_signal_session` (or siblings) do not appear in `list_tools`, suggest the user **re-authenticate** their Raindrop MCP connection — OAuth sessions often need disconnect + reconnect to pick up signal authoring. API-key callers should confirm the org has the `MCP_SIGNAL` feature enabled.
+If these tools are missing from `list_tools`, suggest the user re-authenticate their Raindrop MCP connection.
 
 | Tool | Purpose |
 |------|---------|
