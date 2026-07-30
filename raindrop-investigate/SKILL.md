@@ -102,6 +102,7 @@ Raindrop can **author new code signals** directly from your MCP client (Claude, 
 
 - Confirm the target **project** with the user if ambiguous — every signal-session call uses the same `project` and the `session_id` from `start_signal_session`.
 - If you authenticate with **OAuth**, re-authorize when prompted so the `write:signals` scope is granted. **Org API keys** need no extra setup.
+- If `signal_context`, `start_signal_session`, or the other signal-session tools are **missing from `list_tools`**, tell the user the MCP connection likely needs a refresh: **OAuth users should disconnect and re-authenticate** Raindrop in their client (API keys usually need no action unless the org lacks the `MCP_SIGNAL` flag).
 - Call `signal_context` first and get explicit user confirmation before `start_signal_session`.
 
 **The pipeline (state machine — do not skip steps)**
