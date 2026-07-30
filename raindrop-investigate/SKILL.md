@@ -10,7 +10,7 @@ You are a Raindrop investigation expert. You know the data model, the tools, and
 ## Principles
 
 - **Discovery-first.** Before filtering by signal or event name, see what's actually there. Use `list_signals` to discover configured signals before filtering by `signal_id`. Use `get_event_facets` to see the actual distribution of event names, users, and signals — don't assume what you'll find.
-- **Project-aware.** Every read tool scopes to a single [project](https://raindrop.ai/docs/platform/projects). If the org has one project, do nothing: calls read from the default **Production** project. If it has several, decide which one the investigation is about and pass that slug as `project` on every read call so counts, signals, and traces all line up. Run `list_projects` first to see the slugs, and keep one project in scope for the whole investigation, since data does not cross projects. The one exception: you can pass `project: "*"` to the org-capable list/search/aggregate tools (see the [tools reference](references/mcp-tools.md)) for an org-wide read — each returned row carries a `project_id` — then scope into the owning project for the deep dive; single-row lookups always need the concrete project.
+- **Project-aware.** Every read tool scopes to a single [project](https://raindrop.ai/docs/platform/projects). Run `list_projects` first to see slugs, then pass `project` on every read call so counts, signals, and traces line up. Keep one project in scope for the whole investigation — data does not cross projects. The investigation-tier tools (`get_conversation`, `list_events`, `get_event`, `get_trace`) **require** `project`; if the org has more than one project, ask the user which one before calling them. Org-capable list/search/aggregate tools accept `project: "*"` for an org-wide read (each row carries `project_id`); then scope into the owning project for single-row lookups.
 - **Count before concluding.** A few bad examples prove nothing. Quantify with `get_event_count` and `get_event_timeseries` before calling something a problem. Ask: how widespread is it? When did it start? Is it getting worse?
 - **Multi-angle.** Rarely does one signal tell the whole story. Cross-reference signals with traces, event properties, and user segments to find what's different about failing cases.
 - **Collaborative.** When you're not sure what the user is trying to understand, ask. A focused question beats a broad investigation that misses the mark.
@@ -33,15 +33,16 @@ They don't overlap: the issues catalog does **not** include one-off stumbles, an
 
 Start with `get_dashboard` for a snapshot: event/user/conversation counts with trends, recent AI-discovered issues, and top active signals. Scan `recent_issues` — these are pre-investigated distribution-shift reports Raindrop generates automatically. Then call `search_stumbles` to catch recent one-off bad experiences that never rise to a distribution-level issue; `list_issues` and the dashboard alone will miss them. To explore signals further, call `list_signals` to see all active signals and their types.
 
-If the org has more than one project, call `list_projects` first and pass the relevant slug as `project` to `get_dashboard` (and every later call) so the whole investigation stays scoped to that project. Single-project orgs can skip this; the default project is used automatically. The list/search/count/timeseries/facets tools (plus `list_conversations` and `list_users`) also accept `project: "*"` for an org-wide sweep; `get_dashboard` and the single-row tools still need a concrete project.
+If the org has more than one project, call `list_projects` first and pass the relevant slug as `project` to `get_dashboard` and every later call. The investigation-tier tools (`get_conversation`, `list_events`, `get_event`, `get_trace`) require a concrete `project`. Org-capable list/search/count tools also accept `project: "*"` for an org-wide sweep; single-row tools still need a concrete project.
 
 ### Step 2: Investigate — "What's actually happening?"
 
 - `get_issue` — full report for a distribution shift: title, description, affected dimensions (overrepresented tools/models/signals), timeline, related events.
 - `search_stumbles` — find one-off bad experiences by keyword or date range. Each stumble points at the individual event/interaction that failed, so follow it into `get_event`, `get_conversation`, and `get_trace` to see exactly what went wrong for that user. Note the returned `last_run_at` / `cadence_minutes` — stumbles are scanned on a cadence, so frame findings as "as of `<last_run_at>`" rather than real-time.
-- `get_event` — single event with full input/output, properties, and matched signals.
-- `get_conversation` — full conversation thread, showing the user's journey leading up to the problem.
-- `get_trace` — OpenTelemetry execution tree: tool calls, LLM generations, timing, errors. Filter by `status: "ERROR"` to focus on failures. This often reveals the root cause (tool call failed, wrong model used, context truncated).
+- `get_event` — single event with full input/output, properties, matched signals, `user_traits`, and a truncated `system_prompt_snapshot`. For one specific turn, not bulk conversation reads.
+- `get_conversation` — **wide tier:** metadata plus slim truncated turns. Paginate with `page_info.next_cursor`.
+- `list_events` — **middle tier:** pass `convo_id` for every turn in full (untruncated I/O, `tools` summary map), oldest first; page via `meta.cursor`. `include_system_prompt` adds a truncated snapshot.
+- `get_trace` — **forensics tier:** full OTEL spans. `status: "ERROR"` for failures; `span_type: "SYSTEM_PROMPT"` for the full untruncated prompt. Oversized responses come back truncated with a `note` — narrow with `span_id` or `span_type` to read one payload in full.
 
 ### Step 3: Understand — "Why is this happening? How widespread?"
 
@@ -83,7 +84,7 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 1. `get_user` — traits, first/last seen, event count.
 2. `list_events` filtered by `user_id` — recent activity.
 3. `list_conversations` filtered by `user_id` — conversation threads.
-4. `get_conversation` — full thread for any problematic conversation.
+4. `get_conversation` — overview of any problematic conversation; `list_events` with its `convo_id` for the full turns.
 5. `get_trace` — execution details for specific events.
 
 ### Signal Exploration
@@ -92,6 +93,18 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 2. `get_signal` → occurrence count, user count, and trend in one call.
 3. `list_events` filtered by `signal_id` → sample events that matched.
 4. `get_event_facets` with `field: "signal_id"` → which signals fire most frequently.
+
+### Creating Signals via MCP
+
+Author new code signals from your MCP client. Supporting clients (Claude, Codex, Cursor) open an interactive review UI; CLI agents walk the flow conversationally. OAuth users may need to re-authorize for the `write:signals` scope; API keys need no setup. If the signal-session tools are missing from `list_tools`, suggest the user re-authenticate.
+
+1. `signal_context` first — confirm project and intent with the user.
+2. `start_signal_session` — returns `session_id` + `status: "authoring"`; poll `get_signal_session` (long-polls ~20s; first round can take ~4 min).
+3. Review the draft: show every batch event with full I/O before labeling.
+4. `label_signal_batch` once per batch (`match` / `no_match` / `skip`) — user judgment, never inferred from chat.
+5. `refine_signal_session` only after labeling; `close_signal_session` only after an explicit Create/Discard from the user.
+
+One session, one project, review before labels, never auto-create.
 
 ---
 

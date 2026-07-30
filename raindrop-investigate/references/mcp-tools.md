@@ -7,6 +7,7 @@
 - [Conversations](#conversations)
 - [Users](#users)
 - [Signals](#signals)
+- [Signal authoring (MCP_SIGNAL)](#signal-authoring-mcp_signal)
 - [Traces](#traces)
 - [Issues](#issues)
 - [Stumbles](#stumbles)
@@ -18,9 +19,9 @@ Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
 **Pagination:** All list tools use `cursor` (not `offset`) for pagination. The cursor is returned in each response.
 
-**Projects:** Every read tool below accepts an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). If your org has only one project you can ignore it: omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project, which is the historical behavior. Multi-project orgs pass a project slug to target one project at a time; call `raindrop_list_projects` to discover the slugs. Reads are isolated per project, so an event, signal, or issue from one project is never returned when scoped to another. An unknown or archived slug is rejected, and a malformed slug is invalid; call `raindrop_list_projects` to see what's available.
+**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — call `raindrop_list_projects` first; if the org has more than one project, ask the user which slug to use. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
 
-**All-projects reads:** You can additionally pass `*` as `project` on the org-capable read tools — `raindrop_list_events`, `raindrop_search_events`, `raindrop_get_event_count`, `raindrop_get_event_timeseries`, `raindrop_get_event_facets`, `raindrop_list_conversations`, and `raindrop_list_users` — to read across all of the org's active projects at once; rows from an all-projects read carry a `project_id` naming the owning project. The other tools (single-row lookups, signals, traces, issues, stumbles, and the dashboard) still require a concrete project.
+**All-projects reads:** Pass `*` as `project` on the org-capable read tools — `raindrop_list_events`, `raindrop_search_events`, `raindrop_get_event_count`, `raindrop_get_event_timeseries`, `raindrop_get_event_facets`, `raindrop_list_conversations`, and `raindrop_list_users` — to read across all active projects; rows carry a `project_id`. Single-row lookups (`raindrop_get_event`, `raindrop_get_conversation`, `raindrop_get_trace`, signals, issues, stumbles, dashboard) still require a concrete project (not `*`).
 
 ---
 
@@ -38,26 +39,33 @@ List the projects in your organization. Pass a returned `project` value to any r
 ## Events
 
 ### `raindrop_list_events`
-Paginated event list with optional filters. Sorted most-recent first.
+Paginated event list with optional filters. Each row is a full event: untruncated input/output, model, signals, feature flags, properties, and a `tools` map (`{ count, total_duration_ms?, error_count? }`).
+
+Without `convo_id`: newest first, default `period: "30d"`. With `convo_id`: oldest first, no time window — page via `meta.cursor` until `has_more` is false. Use this after `raindrop_get_conversation` instead of calling `raindrop_get_event` per turn.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor from previous response |
 | `user_id` | string | Filter by user |
-| `convo_id` | string | Filter by conversation |
+| `convo_id` | string | Conversation ID — full untruncated turns, oldest first; page via `meta.cursor` |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal ID |
-| `period` | string | How far back to look (default: `"24h"`) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
+| `model` | string | Filter by AI model name |
+| `feature_flags` | array | Filter by feature flag key/value pairs |
+| `properties` | array | Filter by event properties, e.g. `[{ key: 'status', op: 'eq', value: 'error' }]` |
+| `user_traits` | array | Filter by user trait key/value pairs |
+| `include_system_prompt` | boolean | Truncated prompt snapshot (default: `false`). With `convo_id`: one top-level snapshot + `system_prompt_snapshot_turn_id`; without: per-row snapshots |
+| `period` | string | How far back to look (default: `"30d"`). **Ignored when `convo_id` is set.** |
+| `project` | string | **Required.** Project slug from `raindrop_list_projects`, or `*` for org-wide read |
 
 ### `raindrop_get_event`
-Single event by ID. Returns full input, output, properties, and matched signals.
+Single event by ID. Returns full input, output, properties, and matched signals, plus per-event enrichment: `user_traits` and a truncated `system_prompt_snapshot`. Use for one specific turn; to read all turns of a conversation use `raindrop_list_events` with `convo_id`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `event_id` | string | Required |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | **Required.** Project slug from `raindrop_list_projects` |
 
 ### `raindrop_search_events`
 Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to find events matching a natural language description — this is the primary tool for pattern discovery.
@@ -114,6 +122,8 @@ Top values for a field across events with counts. Use to understand distribution
 
 ## Conversations
 
+**Three-tier read model:** `raindrop_get_conversation` (wide, truncated turns) → `raindrop_list_events` with `convo_id` (middle, full I/O) → `raindrop_get_event` / `raindrop_get_trace` (single-turn enrichment / forensics). All three require `project`.
+
 ### `raindrop_list_conversations`
 Paginated conversation list. Sorted by most recent message first.
 
@@ -125,14 +135,16 @@ Paginated conversation list. Sorted by most recent message first.
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_conversation`
-Single conversation with full message thread.
+Conversation overview: metadata plus slim chronological turns (event `id`, `event_name`, `timestamp`, truncated I/O, tool-call counts). Start here, then go deeper with `raindrop_list_events` (`convo_id`) for full turns or `raindrop_get_trace` on a turn's `id`. No system prompt here — use `raindrop_get_trace` with `span_type: "SYSTEM_PROMPT"`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `conversation_id` | string | Required |
-| `include_events` | boolean | Include conversation events (default: `true`) |
-| `event_limit` | int (1–100) | Max events to include (default: 50) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `event_limit` | int (1–100) | Max turns to include (default: 50) |
+| `cursor` | string | Pagination cursor from a previous response's `page_info.next_cursor` |
+| `project` | string | **Required.** Project slug from `raindrop_list_projects` |
+
+Returns `page_info` (`total_messages`, `returned`, `has_more`, `next_cursor`) for paging through long conversations.
 
 ---
 
@@ -207,23 +219,43 @@ Single signal group with its member signals.
 | `group_id` | string | Required |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
+### Signal authoring (MCP_SIGNAL)
+
+Create new code signals from MCP (requires the `MCP_SIGNAL` feature flag). OAuth users re-authorize for the `write:signals` scope; API keys need no setup. If these tools are missing from `list_tools`, suggest the user re-authenticate.
+
+| Tool | Purpose |
+|------|---------|
+| `raindrop_signal_context` | **Call first.** Loads the authoring workflow. |
+| `raindrop_start_signal_session` | Start authoring. Returns `session_id` + `status: "authoring"`; reuse the same `project` + `session_id` throughout. |
+| `raindrop_get_signal_session` | Poll while authoring (long-polls ~20s) until `reviewing`, `ready`, or `failed`. |
+| `raindrop_get_signal_session_status` | Lightweight status check. |
+| `raindrop_get_signal_session_code` | Classifier source — only when the user explicitly asks. |
+| `raindrop_label_signal_batch` | Label every batch event once (`match` / `no_match` / `skip`). Required before refine or close. |
+| `raindrop_refine_signal_session` | Tighten boundaries after labeling; returns to authoring. |
+| `raindrop_close_signal_session` | `outcome: "create"` + `confirm: true`, or `outcome: "discard"`. Never auto-create. |
+
 ---
 
 ## Traces
 
 ### `raindrop_get_trace`
-OpenTelemetry trace spans for an event or trace ID. Returns the full span tree: LLM calls, tool calls, and internal spans.
+OpenTelemetry trace spans for an event or trace ID. Returns the full span tree: LLM calls, tool calls, and internal spans. **Required:** `project`.
 
 Provide `event_id` or `trace_id` — if both are provided, `event_id` takes precedence.
+
+Pass `span_type: "SYSTEM_PROMPT"` to get the full untruncated system prompt for an event as a single synthetic span.
+
+Oversized responses come back with span payloads truncated inline and a `note` — call again with `span_id` (or `span_type` / `status`) to read one payload in full.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `event_id` | string | Event ID to get traces for |
 | `trace_id` | string | OpenTelemetry trace ID to look up directly |
-| `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` | Filter to a specific span type |
+| `span_id` | string | Return only this span — use after a truncated response |
+| `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` \| `"SYSTEM_PROMPT"` | Filter to a specific span type; `"SYSTEM_PROMPT"` returns the full system prompt |
 | `status` | `"UNSET"` \| `"OK"` \| `"ERROR"` | Filter by span status — use `"ERROR"` to find failures |
 | `limit` | int (1–200) | Max spans to return (default: 50) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | **Required.** Project slug from `raindrop_list_projects` |
 
 ---
 
