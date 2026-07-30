@@ -40,7 +40,7 @@ List the projects in your organization. Pass a returned `project` value to any r
 ### `raindrop_list_events`
 Paginated event list with optional filters. Sorted most-recent first. Each row is a full event — untruncated input/output, model, matched signals, feature flags, properties, and a `tools` map summarizing tool calls by name (`{ count, total_duration_ms?, error_count? }`).
 
-After `raindrop_get_conversation`, pass the same conversation ID as `convo_id` here to load every turn in full instead of calling `raindrop_get_event` per turn.
+After `raindrop_get_conversation`, pass the same conversation ID as `convo_id` here to load every turn in full instead of calling `raindrop_get_event` per turn. `period` is ignored when `convo_id` is set (matches `raindrop_get_conversation`, which has no time window).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
