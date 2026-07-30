@@ -38,21 +38,28 @@ List the projects in your organization. Pass a returned `project` value to any r
 ## Events
 
 ### `raindrop_list_events`
-Paginated event list with optional filters. Sorted most-recent first.
+Paginated event list with optional filters. Sorted most-recent first. Each row is a full event — untruncated input/output, model, matched signals, feature flags, properties, and a `tools` map summarizing tool calls by name (`{ count, total_duration_ms?, error_count? }`).
+
+After `raindrop_get_conversation`, pass the same conversation ID as `convo_id` here to load every turn in full instead of calling `raindrop_get_event` per turn.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor from previous response |
 | `user_id` | string | Filter by user |
-| `convo_id` | string | Filter by conversation |
+| `convo_id` | string | Filter by conversation — fetches all turns with full untruncated I/O |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal ID |
+| `model` | string | Filter by AI model name |
+| `feature_flags` | array | Filter by feature flag key/value pairs |
+| `properties` | array | Filter by event properties, e.g. `[{ key: 'status', op: 'eq', value: 'error' }]` |
+| `user_traits` | array | Filter by user trait key/value pairs |
+| `include_system_prompt` | boolean | Add a truncated `system_prompt_snapshot` to each row (default: `false`); for auditing instructions, not bulk scans |
 | `period` | string | How far back to look (default: `"24h"`) |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_event`
-Single event by ID. Returns full input, output, properties, and matched signals.
+Single event by ID. Returns full input, output, properties, and matched signals, plus per-event enrichment: `user_traits` and a truncated `system_prompt_snapshot`. Use for one specific turn; to read all turns of a conversation use `raindrop_list_events` with `convo_id`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -125,14 +132,18 @@ Paginated conversation list. Sorted by most recent message first.
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_conversation`
-Single conversation with full message thread.
+Conversation overview: metadata (`user_id`, `started_at`, `last_message_at`, `message_count`) plus slim chronological turns — each with its event `id`, `event_name`, `timestamp`, truncated `user_input` / `assistant_output`, and tool-call counts by name. Start here when reading a conversation.
+
+To go deeper, pass the conversation ID to `raindrop_list_events` as `convo_id` for every turn in full, or a turn's `id` to `raindrop_get_trace` for execution spans. The system prompt is not returned here — use `raindrop_get_trace` with `span_type: "SYSTEM_PROMPT"`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `conversation_id` | string | Required |
-| `include_events` | boolean | Include conversation events (default: `true`) |
-| `event_limit` | int (1–100) | Max events to include (default: 50) |
+| `event_limit` | int (1–100) | Max turns to include (default: 50) |
+| `cursor` | string | Pagination cursor from a previous response's `page_info.next_cursor` |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+Returns `page_info` (`total_events`, `returned`, `has_more`, `next_cursor`) for paging through long conversations.
 
 ---
 
@@ -216,11 +227,13 @@ OpenTelemetry trace spans for an event or trace ID. Returns the full span tree: 
 
 Provide `event_id` or `trace_id` — if both are provided, `event_id` takes precedence.
 
+Pass `span_type: "SYSTEM_PROMPT"` to get the full untruncated system prompt for an event as a single synthetic span. When a trace is too big to return inline, the response has `too_large: true`, a payload-free span outline in `spans`, and a `retry` object — immediately call again with those `retry` parameters (adding a `span_type` or `status` filter) rather than answering from the outline.
+
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `event_id` | string | Event ID to get traces for |
 | `trace_id` | string | OpenTelemetry trace ID to look up directly |
-| `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` | Filter to a specific span type |
+| `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` \| `"SYSTEM_PROMPT"` | Filter to a specific span type; `"SYSTEM_PROMPT"` returns the full system prompt |
 | `status` | `"UNSET"` \| `"OK"` \| `"ERROR"` | Filter by span status — use `"ERROR"` to find failures |
 | `limit` | int (1–200) | Max spans to return (default: 50) |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |

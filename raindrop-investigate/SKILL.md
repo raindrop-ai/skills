@@ -39,9 +39,9 @@ If the org has more than one project, call `list_projects` first and pass the re
 
 - `get_issue` — full report for a distribution shift: title, description, affected dimensions (overrepresented tools/models/signals), timeline, related events.
 - `search_stumbles` — find one-off bad experiences by keyword or date range. Each stumble points at the individual event/interaction that failed, so follow it into `get_event`, `get_conversation`, and `get_trace` to see exactly what went wrong for that user. Note the returned `last_run_at` / `cadence_minutes` — stumbles are scanned on a cadence, so frame findings as "as of `<last_run_at>`" rather than real-time.
-- `get_event` — single event with full input/output, properties, and matched signals.
-- `get_conversation` — full conversation thread, showing the user's journey leading up to the problem.
-- `get_trace` — OpenTelemetry execution tree: tool calls, LLM generations, timing, errors. Filter by `status: "ERROR"` to focus on failures. This often reveals the root cause (tool call failed, wrong model used, context truncated).
+- `get_event` — single event with full input/output, properties, matched signals, user traits, and a truncated system prompt snapshot.
+- `get_conversation` — conversation overview: metadata plus slim turns (truncated input/output, tool-call counts, each turn's event id). To read every turn in full, pass the conversation ID to `list_events` as `convo_id` — don't call `get_event` once per turn.
+- `get_trace` — OpenTelemetry execution tree: tool calls, LLM generations, timing, errors. Filter by `status: "ERROR"` to focus on failures. This often reveals the root cause (tool call failed, wrong model used, context truncated). Use `span_type: "SYSTEM_PROMPT"` for the full untruncated system prompt; if a response says `too_large: true`, retry with its `retry` parameters instead of answering from the outline.
 
 ### Step 3: Understand — "Why is this happening? How widespread?"
 
@@ -83,7 +83,7 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 1. `get_user` — traits, first/last seen, event count.
 2. `list_events` filtered by `user_id` — recent activity.
 3. `list_conversations` filtered by `user_id` — conversation threads.
-4. `get_conversation` — full thread for any problematic conversation.
+4. `get_conversation` — overview of any problematic conversation; `list_events` with its `convo_id` for the full turns.
 5. `get_trace` — execution details for specific events.
 
 ### Signal Exploration
