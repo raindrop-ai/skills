@@ -43,12 +43,15 @@ Paginated event list with optional filters. Each row is a full event: untruncate
 
 Without `convo_id`: newest first, default `period: "30d"`. With `convo_id`: oldest first, no time window — page via `meta.cursor` until `has_more` is false. Use this after `raindrop_get_conversation` instead of calling `raindrop_get_event` per turn.
 
+To read the turns leading up to one specific event, add `before_event_id` instead of paging the conversation from the beginning: `{ convo_id, before_event_id, limit: 20 }` returns the 20 turns immediately before that anchor, newest first, in a single call. Anchored reads need a concrete `project` (`*` is rejected).
+
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor from previous response |
 | `user_id` | string | Filter by user |
 | `convo_id` | string | Conversation ID — full untruncated turns, oldest first; page via `meta.cursor` |
+| `before_event_id` | string | Anchor event ID; requires `convo_id`. Returns turns strictly before the anchor's timestamp, newest first, paging backwards via `meta.cursor`. Requires a concrete `project` |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal ID |
 | `model` | string | Filter by AI model name |
