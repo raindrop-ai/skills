@@ -27,6 +27,7 @@ Copy this checklist into your response and check off each item as you complete i
 - [ ] Phase 1: Identify AI features worth instrumenting
 - [ ] Phase 1: Check for existing Raindrop code
 - [ ] Phase 1: Identify package manager and check for RAINDROP_WRITE_KEY
+- [ ] Phase 1: Note any target project slug named in your instructions (it must end up in the SDK call)
 - [ ] Phase 1: Match a Raindrop integration (or fall back to base SDK / HTTP API) and load the matching reference file
 - [ ] Phase 2: Write integration plan and present it to the user
 - [ ] Phase 2: Get explicit user approval before proceeding
@@ -167,7 +168,7 @@ Attempt to include **all** of the following in your plan. If using an integratio
 - **Tracing** (`withSpan` / `withTool`) — if the AI pipeline has multiple steps (tool calls, retrieval, chained prompts)
 - **Self Diagnostics** — if running an autonomous agent that should self-report issues
 - **PII Redaction** (`redactPii: true`) — if inputs may contain sensitive user data
-- **Project targeting** (`projectId` / `project_id`): only if the org runs multiple Raindrop [projects](https://raindrop.ai/docs/platform/projects) and this app's events should land in a specific one. Single-project orgs need nothing, since events go to the default **Production** project automatically. If you do target a project, pass the slug on the SDK client (or the `X-Raindrop-Project-Id` header for the HTTP API), and confirm the exact slug with the user rather than guessing.
+- **Project targeting** (`projectId` / `project_id`) — if a project slug was given in your instructions, ensure it is configured in the integration
 
 For each enhancement: if it's clearly applicable from the code (e.g. there's a visible thumbs-up button → wire `trackSignal`), include it. If you can't tell quickly, skip it and circle back after the core integration is working — don't stall the plan asking about every enhancement.
 

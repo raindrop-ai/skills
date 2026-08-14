@@ -104,6 +104,7 @@ without it run normally and are not tracked.
 const raindrop = createRaindropClaudeAgentSDK({
   writeKey: process.env.RAINDROP_WRITE_KEY!, // REQUIRED
   endpoint: 'https://api.raindrop.ai/v1', // Optional, defaults to production
+  projectId: 'support-prod', // Optional, scopes events to a project (see Projects)
 
   traces: {
     enabled: true, // Default: true

@@ -195,13 +195,16 @@ async function trackEvent(
     event: string;
     ai_data: { model?: string; input?: string; output?: string; convo_id?: string };
     properties?: Record<string, unknown>;
-  }
+  },
+  // Omit to send to the org's default project (see "Selecting a project").
+  projectId?: string
 ) {
   await fetch(`${RAINDROP_URL}events/track`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${writeKey}`,
+      ...(projectId ? { "X-Raindrop-Project-Id": projectId } : {}),
     },
     body: JSON.stringify([event]),
   });
