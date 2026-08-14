@@ -130,6 +130,7 @@ disabled. If you need correlation across nested calls, pass an explicit
 const raindrop = createRaindropAISDK({
   writeKey: process.env.RAINDROP_WRITE_KEY!, // REQUIRED
   endpoint: 'https://api.raindrop.ai/v1', // Optional, defaults to production
+  projectId: 'support-prod', // Optional, scopes events to a project (see Projects)
 
   traces: {
     enabled: true, // Default: true
