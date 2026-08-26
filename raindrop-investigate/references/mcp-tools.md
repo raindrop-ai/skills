@@ -126,25 +126,25 @@ Top values for a field across events with counts. Use to understand distribution
 Available only when Agent Simulations is enabled for the selected organization. Replay execution is available to organization API keys; OAuth callers can inspect worlds and replay progress but cannot start a replay.
 
 ### `raindrop_list_simulation_worlds`
-List the organization's simulation worlds, their agent slugs, repositories, and replay readiness. Select a world with `readiness.usable: true` before starting a replay.
+List the organization's simulation worlds, their agent slugs, repositories, and replay readiness. Select a world with `status: "ready"` whose `readiness.reason` is not `"version_missing"`; snapshots build automatically when needed.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `org` | string | Optional organization reference; omit for the default organization |
 
 ### `raindrop_replay_event`
-Replay an existing captured event against a ready simulation world. This starts a durable replay and returns its `replay_id`; call `raindrop_get_replay_progress` until the replay reaches a terminal status. Requires an organization API key.
+Replay an existing captured event against a ready simulation world. Snapshots build automatically when needed. This starts a durable replay and returns its `replay_id`; call `raindrop_get_replay_progress` until the replay reaches a terminal status. Requires an organization API key.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `event_id` | string | **Required.** Event ID from `raindrop_list_events` or `raindrop_get_event` |
 | `event_timestamp` | string (ISO) | Event timestamp; required only when the event is older than seven days |
-| `world_id` | UUID | **Required.** Ready world ID from `raindrop_list_simulation_worlds` |
+| `world_id` | UUID | **Required.** ID of a world with status ready from `raindrop_list_simulation_worlds` |
 | `project` | string | **Required.** Concrete project slug that owns the event |
 | `org` | string | Optional organization reference; omit for the default organization |
 
 ### `raindrop_get_replay_progress`
-Wait up to 15 seconds for a replay. A completed response includes the replayed agent output and duration; preparing or running responses should be followed by a short user-visible status update and another call. Stop on `completed` or `failed`.
+Wait up to 15 seconds for a replay. Responses are wrapped in `data`. A completed response includes `data.output` and `data.duration_ms`; preparing or running responses should be followed by a short user-visible status update and another call. Stop when `data.status` is `completed` or `failed`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|

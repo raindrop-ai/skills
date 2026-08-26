@@ -92,9 +92,9 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 When Agent Simulations is enabled and the user explicitly requests a replay:
 
 1. `list_projects` and `list_events` — identify the event, its concrete project, and its timestamp.
-2. `list_simulation_worlds` — select a world with `readiness.usable: true`.
+2. `list_simulation_worlds` — select a world with `status: "ready"` whose `readiness.reason` is not `"version_missing"`; snapshots build automatically when needed.
 3. `replay_event` — pass `event_id`, `world_id`, and `project`; include `event_timestamp` when the event is older than seven days.
-4. `get_replay_progress` — pass the returned replay ID; each call waits up to 15 seconds. Share brief progress updates and continue until `completed` or `failed`.
+4. `get_replay_progress` — pass the returned replay ID; each call waits up to 15 seconds. Share brief progress updates and continue until `data.status` is `completed` or `failed`.
 5. Return the replayed output and duration, or explain the terminal failure. Starting a replay requires an organization API key.
 
 ### Signal Exploration
