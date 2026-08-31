@@ -41,7 +41,7 @@ If the org has more than one project, call `list_projects` first and pass the re
 - `search_stumbles` — find one-off bad experiences by keyword or date range. Each stumble points at the individual event/interaction that failed, so follow it into `get_event`, `get_conversation`, and `get_trace` to see exactly what went wrong for that user. Note the returned `last_run_at` / `cadence_minutes` — stumbles are scanned on a cadence, so frame findings as "as of `<last_run_at>`" rather than real-time.
 - `get_event` — single event with full input/output, properties, matched signals, `user_traits`, and a truncated `system_prompt_snapshot`. For one specific turn, not bulk conversation reads.
 - `get_conversation` — **wide tier:** metadata plus slim truncated turns. Paginate with `page_info.next_cursor`.
-- `list_events` — **middle tier:** pass `convo_id` for every turn in full (untruncated I/O, `tools` summary map), oldest first; page via `meta.cursor`. `include_system_prompt` adds a truncated snapshot.
+- `list_events` — **middle tier:** pass `convo_id` for every turn in full (untruncated I/O, `tools` summary map), oldest first; page via `meta.cursor`. `include_system_prompt` adds a truncated snapshot. When you only want the context leading up to one event, add `before_event_id` — `{ convo_id, before_event_id, limit: 20 }` returns the preceding 20 turns in one call instead of paging a long conversation from its start.
 - `get_trace` — **forensics tier:** full OTEL spans. `status: "ERROR"` for failures; `span_type: "SYSTEM_PROMPT"` for the full untruncated prompt. Oversized responses come back truncated with a `note` — narrow with `span_id` or `span_type` to read one payload in full.
 
 ### Step 3: Understand — "Why is this happening? How widespread?"
