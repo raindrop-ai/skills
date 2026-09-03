@@ -9,6 +9,7 @@
 - [Signals](#signals)
 - [Signal authoring (MCP_SIGNAL)](#signal-authoring-mcp_signal)
 - [Traces](#traces)
+- [Event replay](#event-replay)
 - [Issues](#issues)
 - [Stumbles](#stumbles)
 - [Docs & Feedback](#docs--feedback)
@@ -299,6 +300,43 @@ The response also includes `cadence_minutes` and `last_run_at`: stumbles are det
 | `created_before` | string (ISO) | Only stumbles created before this time |
 | `page` | int | Page number (default: 1); each page returns up to 50 |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+---
+
+## Event replay
+
+These are the server tool names; clients may add a `raindrop_` prefix.
+
+### `list_simulation_worlds`
+
+List the organization's simulation worlds, their agents, runtime event-name bindings, repositories, and replay readiness. `replay_event` selects the bound world automatically. For an explicit choice, use a ready world whose `readiness.reason` is neither `version_missing` nor `storage_environment_mismatch`. Replays build snapshots automatically when needed.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `org` | string | Optional organization reference; omit for the authenticated organization |
+
+### `replay_event`
+
+Replay a captured event against a ready simulation world. Pass an event ID from `list_events` or `get_event` and its owning project. The event's runtime name automatically selects its bound agent and world in this environment. Pass `world_id` only to override that selection or resolve an ambiguous binding; use `list_simulation_worlds` to see the available choices. Snapshots build automatically when needed. Events from the last seven days need only `event_id`; pass `event_timestamp` from `list_events` to replay older events. Returns a `replay_id`; immediately call `get_replay_progress` until the replay reaches a terminal status. Available with API-key authentication.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `event_id` | non-empty string | Required event ID from `list_events` or `get_event` |
+| `event_timestamp` | ISO datetime string | Optional event timestamp; required for events older than seven days |
+| `world_id` | UUID string | Optional world override; otherwise selected from the event's agent binding |
+| `org` | string | Optional organization reference |
+| `project` | non-empty string | Required owning project slug; `*` is not supported |
+
+Do not guess the agent from its slug or remove `-dev` from event names. Automatic selection uses the stored event-name binding. A missing or ambiguous binding requires an explicit world choice.
+
+### `get_replay_progress`
+
+Wait up to 15 seconds for an event replay to finish. A completed response includes the replayed agent output and duration. For preparing or running responses, share a short status update with the user and call this tool again. Stop when `data.status` is `completed` or `failed`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `replay_id` | UUID string | Required replay ID returned by `replay_event` |
+| `org` | string | Optional organization reference |
 
 ---
 
