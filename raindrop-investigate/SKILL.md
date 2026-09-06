@@ -106,6 +106,15 @@ Author new code signals from your MCP client. Supporting clients (Claude, Codex,
 
 One session, one project, review before labels, never auto-create.
 
+## Refining Existing Signals via MCP
+
+To change the matching behavior of an accepted user JavaScript signal, call
+`raindrop_refine_signal` with its `signal_id`, required `project`, and either
+one or more positive or negative event IDs, or a nonblank `comment`. The
+refinement runs in the background and applies the resulting definition to that
+same signal. Poll `raindrop_get_signal_refinement` with the returned
+`session_id` and project until the status is `updated` or `failed`.
+
 ---
 
 ## Tool Reference
