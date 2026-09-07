@@ -239,7 +239,6 @@ Create new code signals from MCP (requires the `MCP_SIGNAL` feature flag). OAuth
 | Tool | Purpose |
 |------|---------|
 | `raindrop_refine_signal` | Refine an existing accepted user JavaScript signal with event labels or a comment, automatically applying the resulting definition to that same signal. Returns immediately with `status: "refining"`. |
-| `raindrop_get_signal_refinement` | Poll a refinement session; returns `refining`, `updated` after the new signal version is active, or `failed`. |
 
 `raindrop_refine_signal` requires `signal_id` (UUID) and `project`. `org` is
 optional. `positive_event_ids` and `negative_event_ids` default to empty arrays
@@ -247,9 +246,10 @@ and accept at most 500 event IDs each. `comment` defaults to an empty string
 and accepts at most 4,000 characters. Provide at least one event ID or a
 nonblank comment; event IDs must belong to the selected project.
 
-`raindrop_get_signal_refinement` requires `session_id` (UUID) and `project`;
-`org` is optional. Use the `session_id` returned by
-`raindrop_refine_signal` and keep the same project scope while polling.
+A successful call returns `signal_id` and `status: "refining"`. Call once,
+acknowledge that refinement has started, and continue with the user's other
+work. Raindrop completes and applies the refinement automatically in the
+background.
 
 ---
 

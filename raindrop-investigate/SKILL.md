@@ -112,8 +112,9 @@ To change the matching behavior of an accepted user JavaScript signal, call
 `raindrop_refine_signal` with its `signal_id`, required `project`, and either
 one or more positive or negative event IDs, or a nonblank `comment`. The
 refinement runs in the background and applies the resulting definition to that
-same signal. Poll `raindrop_get_signal_refinement` with the returned
-`session_id` and project until the status is `updated` or `failed`.
+same signal. Call once, acknowledge that refinement has started, and continue
+with the user's other work. Raindrop completes and applies the refinement
+automatically; the agent's task ends after the successful starting call.
 
 ---
 
