@@ -1,6 +1,6 @@
 ---
 name: raindrop-investigate
-description: Investigates and triages issues in AI applications using Raindrop's MCP tools. Use when investigating AI product issues, triaging bugs in LLM-powered features, analyzing user conversations, debugging agent behavior, or when the user mentions Raindrop signals, events, traces, conversations, or issues — even if they don't say "investigate" explicitly.
+description: Investigates and triages AI application issues and refines existing signals using Raindrop's MCP tools. Use when investigating AI product issues, refining signals after finding false positives, triaging bugs in LLM-powered features, analyzing user conversations, debugging agent behavior, or when the user mentions Raindrop signals, events, traces, conversations, or issues — even if they don't say "investigate" explicitly.
 ---
 
 # Raindrop Investigation Skill
@@ -108,13 +108,26 @@ One session, one project, review before labels, never auto-create.
 
 ## Refining Existing Signals via MCP
 
-To change the matching behavior of an accepted user JavaScript signal, call
-`raindrop_refine_signal` with its `signal_id`, required `project`, and either
-one or more positive or negative event IDs, or a nonblank `comment`. The
-refinement runs in the background and applies the resulting definition to that
-same signal. Call once, acknowledge that refinement has started, and continue
-with the user's other work. Raindrop completes and applies the refinement
-automatically; the agent's task ends after the successful starting call.
+The preferred path starts during a deep dive into a specific signal: inspect
+its matched events, identify false positives, then refine when the user asks
+to change that behavior. Reuse the signal, project, and events already in the
+conversation; discover only what is missing.
+
+Use those false positives as `negative_event_ids`. Add a `comment` when it
+helps explain why cases like them should not match. Positive examples are optional: include
+`positive_event_ids` when a specific example should match or its behavior must
+be preserved. Do not require collecting positive examples before refining.
+
+Direct refinement requests are also supported. If the user supplies examples
+or a clear instruction, use that feedback without requiring a new investigation.
+Clarify the intended change only when it is unclear.
+
+Call `raindrop_refine_signal` for the accepted user JavaScript signal with its
+`signal_id`, required `project`, and at least one positive or negative event ID,
+or a nonblank `comment`. Raindrop refines the classifier in the background and
+automatically applies the resulting definition to the same signal. Call once,
+acknowledge that refinement has started, and continue with the user's other
+work; there is no polling or follow-up close call.
 
 ---
 
