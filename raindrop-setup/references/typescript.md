@@ -282,6 +282,7 @@ appropriate error handling in the application.
 ```typescript
 new Raindrop({
   writeKey: process.env.RAINDROP_WRITE_KEY!,
+  projectId: 'support-prod', // Optional, scopes events to a project (see Projects)
   debugLogs: process.env.NODE_ENV !== 'production', // Print queued events
   disabled: process.env.NODE_ENV === 'test', // Disable all tracking
 });
