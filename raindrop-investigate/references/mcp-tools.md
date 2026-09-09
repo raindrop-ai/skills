@@ -8,6 +8,7 @@
 - [Users](#users)
 - [Signals](#signals)
 - [Signal authoring (MCP_SIGNAL)](#signal-authoring-mcp_signal)
+- [Existing signal refinement](#existing-signal-refinement)
 - [Traces](#traces)
 - [Issues](#issues)
 - [Stumbles](#stumbles)
@@ -225,7 +226,7 @@ Create new code signals from MCP (requires the `MCP_SIGNAL` feature flag). OAuth
 
 | Tool | Purpose |
 |------|---------|
-| `raindrop_signal_context` | **Call first.** Loads the authoring workflow. |
+| `raindrop_skills` | **Call first** with `topic: "signals"`. Loads the signal workflow. |
 | `raindrop_start_signal_session` | Start authoring. Returns `session_id` + `status: "authoring"`; reuse the same `project` + `session_id` throughout. |
 | `raindrop_get_signal_session` | Poll while authoring (long-polls ~20s) until `reviewing`, `ready`, or `failed`. |
 | `raindrop_get_signal_session_status` | Lightweight status check. |
@@ -244,7 +245,8 @@ Create new code signals from MCP (requires the `MCP_SIGNAL` feature flag). OAuth
 optional. `positive_event_ids` and `negative_event_ids` default to empty arrays
 and accept at most 500 event IDs each. `comment` defaults to an empty string
 and accepts at most 4,000 characters. Provide at least one event ID or a
-nonblank comment; event IDs must belong to the selected project.
+nonblank comment; event IDs must belong to the selected project. OAuth callers
+need `write:signals`; API-key callers can also use this write tool.
 
 Use `negative_event_ids` for the false positives already identified. Add a
 `comment` when it helps explain the desired change. Positive examples are optional; do
@@ -255,6 +257,9 @@ A successful call returns `signal_id` and `status: "refining"`. Call once,
 acknowledge that refinement has started, and continue with the user's other
 work. Raindrop completes and applies the refinement automatically in the
 background.
+
+This uses the same headless refinement flow as the Signals page. No polling or
+`close_signal_session` call is needed.
 
 ---
 

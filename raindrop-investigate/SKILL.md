@@ -98,7 +98,7 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 
 Author new code signals from your MCP client. Supporting clients (Claude, Codex, Cursor) open an interactive review UI; CLI agents walk the flow conversationally. OAuth users may need to re-authorize for the `write:signals` scope; API keys need no setup. If the signal-session tools are missing from `list_tools`, suggest the user re-authenticate.
 
-1. `signal_context` first — confirm project and intent with the user.
+1. `raindrop_skills` with `topic: "signals"` first — load the signal workflow.
 2. `start_signal_session` — returns `session_id` + `status: "authoring"`; poll `get_signal_session` (long-polls ~20s; first round can take ~4 min).
 3. Review the draft: show every batch event with full I/O before labeling.
 4. `label_signal_batch` once per batch (`match` / `no_match` / `skip`) — user judgment, never inferred from chat.
@@ -122,12 +122,14 @@ Direct refinement requests are also supported. If the user supplies examples
 or a clear instruction, use that feedback without requiring a new investigation.
 Clarify the intended change only when it is unclear.
 
+Load `raindrop_skills` with `topic: "signals"` if it is not already in context.
 Call `raindrop_refine_signal` for the accepted user JavaScript signal with its
 `signal_id`, required `project`, and at least one positive or negative event ID,
 or a nonblank `comment`. Raindrop refines the classifier in the background and
 automatically applies the resulting definition to the same signal. Call once,
 acknowledge that refinement has started, and continue with the user's other
-work; there is no polling or follow-up close call.
+work; there is no polling or follow-up close call. This uses the same headless
+refinement flow as the Signals page; the response confirms that it started.
 
 ---
 
