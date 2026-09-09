@@ -79,6 +79,7 @@ Scan the project's imports and dependency manifests for a framework Raindrop int
 | Framework signal | Reference file |
 |---|---|
 | `import ... from 'ai'` / `'ai/rsc'` / `'@ai-sdk/...'` | `references/vercel-ai-sdk.md` |
+| `import ... from 'experimental-ash'` / `'experimental-ash/context'` or an existing `agent/instrumentation.ts` (Vercel Ash agent framework) | `references/ash.md` |
 | `import ... from '@anthropic-ai/claude-agent-sdk'` | `references/claude-agent-sdk.md` |
 | `@anthropic-ai/sdk` **and** `client.beta.sessions` / `client.beta.agents` / `client.beta.environments` (Claude managed agent runtime). Plain `client.messages.create` does **not** count — for that, use `references/typescript.md`. | `references/claude-managed-agents.md` |
 | `import ... from '@openai/agents'` | `references/openai-agents-typescript.md` |
