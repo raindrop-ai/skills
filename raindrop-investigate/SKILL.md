@@ -131,6 +131,18 @@ acknowledge that refinement has started, and continue with the user's other
 work; there is no polling or follow-up close call. This uses the same headless
 refinement flow as the Signals page; the response confirms that it started.
 
+## Reading a PR's Simulation Review
+
+Orgs with Agent Simulations get a review on each pull request that touches a tracked agent. The review replays recent production events at the PR's merge base and head and runs a behavior review over the pairs. Use this after changing an agent's prompt or code to see what actually changed, instead of reading the sticky PR comment.
+
+1. `raindrop_list_simulation_reviews` with `repo` (`owner/name`) and `pr_number`. The newest row is the live review for the current head; older heads show `superseded_by`.
+2. `raindrop_get_simulation_review` with that `review_id`. If `status` is `running`, tell the user and call again later.
+3. Read `behavior.overview`: `assessment` (`clear`, `warning`, `regression`, `incomplete`), `summary`, and `observations` with the `pair_ids` they cite. `result.pairs` has per-event cost and observation counts for baseline and candidate.
+4. To see the agent's actual output for a cited pair, pass its `replay_id` to `raindrop_get_replay_progress`.
+5. Reply with the review `url` so the user can open it in Raindrop.
+
+Ad hoc replays (`raindrop_replay_event` against a world) are API-key only and run one event on one commit; use them to check a single event, not to compare versions.
+
 ---
 
 ## Tool Reference

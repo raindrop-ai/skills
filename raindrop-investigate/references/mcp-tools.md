@@ -12,6 +12,7 @@
 - [Traces](#traces)
 - [Issues](#issues)
 - [Stumbles](#stumbles)
+- [Simulations](#simulations)
 - [Docs & Feedback](#docs--feedback)
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
@@ -326,6 +327,58 @@ The response also includes `cadence_minutes` and `last_run_at`: stumbles are det
 | `created_before` | string (ISO) | Only stumbles created before this time |
 | `page` | int | Page number (default: 1); each page returns up to 50 |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+---
+
+## Simulations
+
+Simulations replay captured production events against a checked-out version of your agent's code so you can see how it behaves before and after a change. A **world** is one tracked agent + repository. A **replay** runs one event against one commit. A **review** is created automatically for a pull request: it replays a sample of recent events at the PR's merge base (baseline) and head (candidate), pairs the results, and runs a behavior review over the pairs.
+
+> Note: these tools are registered only for orgs with the Agent Simulations entitlement. `raindrop_replay_event` is additionally API-key only; OAuth callers see the four read tools.
+
+### `raindrop_list_simulation_worlds`
+List the organization's simulation worlds, their agents, repositories, and replay readiness. Choose a world whose `status` is `ready` and whose `readiness.reason` is not `version_missing`. Replays build snapshots automatically when needed.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `org` | string | Org scope (OAuth callers in multiple orgs) |
+
+### `raindrop_list_simulation_reviews`
+List PR simulation reviews, newest first. Filter by `repo` and `pr_number` to find the review for a pull request. `behavior.assessment` is `clear`, `warning`, `regression`, or `incomplete` once the behavior review has finished, and `null` before it runs. Pass `review_id` to `raindrop_get_simulation_review` for pairs and observations.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `repo` | string | Repository full name (`owner/name`) from `raindrop_list_simulation_worlds` |
+| `pr_number` | int | Pull request number |
+| `limit` | int (1–50) | Max results (default: 20) |
+| `org` | string | Org scope (OAuth callers in multiple orgs) |
+
+### `raindrop_get_simulation_review`
+Get one simulation review with its replays, comparison result, and behavior review. `status` is `running` until every replay finishes; call again later while it is running. `result.pairs` holds each event's baseline and candidate replay with cost and observation counts. `behavior.overview` holds the assessment, summary, and observations with the `pair_ids` they cite; pass a pair's `replay_id` to `raindrop_get_replay_progress` to read the replayed agent output. Always reply to the user with the `url` field so they can open the review in Raindrop.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `review_id` | string (UUID) | Required. From `raindrop_list_simulation_reviews` |
+| `org` | string | Org scope (OAuth callers in multiple orgs) |
+
+### `raindrop_replay_event`
+Replay a captured event against a ready simulation world. Call `raindrop_list_simulation_worlds` first, then pass an event ID from `raindrop_list_events` or `raindrop_get_event` and its owning project. Events from the last seven days need only `event_id`; pass `event_timestamp` for older events. Returns a `replay_id` and `url`; immediately call `raindrop_get_replay_progress` until the replay reaches a terminal status.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `event_id` | string | Required. Event ID from `raindrop_list_events` or `raindrop_get_event` |
+| `event_timestamp` | string (ISO) | Required only for events older than 7 days |
+| `world_id` | string (UUID) | Required. A world with `status: ready` from `raindrop_list_simulation_worlds` |
+| `project` | string | **Required.** Project slug that owns the event |
+| `org` | string | Org scope (OAuth callers in multiple orgs) |
+
+### `raindrop_get_replay_progress`
+Wait up to 15 seconds for a replay to finish. A completed response includes the replayed agent output and duration. Always reply to the user with the `url` field so they can open the replay in Raindrop. For `preparing` or `running` responses, share a short status update and call again. Stop when `data.status` is `completed` or `failed`.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `replay_id` | string (UUID) | Required. From `raindrop_replay_event` or a review pair |
+| `org` | string | Org scope (OAuth callers in multiple orgs) |
 
 ---
 
