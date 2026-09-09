@@ -15,7 +15,7 @@ npx skills add raindrop-ai/skills --skill raindrop-ai-sdk-v7
 | Skill | Description |
 |-------|-------------|
 | [`raindrop-setup`](./raindrop-setup/) | Set up, debug, or extend Raindrop observability in a project. |
-| [`raindrop-investigate`](./raindrop-investigate/) | Investigate and triage issues in AI applications using Raindrop's MCP tools. |
+| [`raindrop-investigate`](./raindrop-investigate/) | Investigate AI application issues and refine signals using Raindrop's MCP tools. |
 | [`raindrop-ai-sdk-v7`](./raindrop-ai-sdk-v7/) | Integrate Raindrop with Vercel AI SDK v7 (beta/canary) and fix v7-specific telemetry gaps. |
 
 ## About Raindrop
