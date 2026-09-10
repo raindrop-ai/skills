@@ -12,13 +12,14 @@
 - [Traces](#traces)
 - [Issues](#issues)
 - [Stumbles](#stumbles)
+- [Simulation reviews](#simulation-reviews)
 - [Docs & Feedback](#docs--feedback)
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
-**Time ranges:** All tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`) rather than explicit start/end timestamps. Max lookback is 90 days.
+**Time ranges:** Tools that accept `period` use strings such as `"1h"`, `"24h"`, `"7d"`, or `"30d"`, with a maximum lookback of 90 days. Simulation review tools do not accept a time-range parameter.
 
-**Pagination:** All list tools use `cursor` (not `offset`) for pagination. The cursor is returned in each response.
+**Pagination:** Follow each tool's parameters for pagination. Simulation review listing uses a bounded `limit` with no cursor.
 
 **Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — call `raindrop_list_projects` first; if the org has more than one project, ask the user which slug to use. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
 
@@ -326,6 +327,34 @@ The response also includes `cadence_minutes` and `last_run_at`: stumbles are det
 | `created_before` | string (ISO) | Only stumbles created before this time |
 | `page` | int | Page number (default: 1); each page returns up to 50 |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+
+---
+
+## Simulation reviews
+
+These tools use organization scope, with no `project`, `period`, or cursor parameter. The server names are `list_simulation_reviews` and `get_simulation_review`; clients may display them with a `raindrop_` prefix. Both are read-only.
+
+### `list_simulation_reviews`
+
+List PR simulation reviews, newest first. Reviews compare captured events replayed at the PR merge base and head. Returns `{ data: [...] }`; each item includes `review_id`, `url`, `status`, and nullable `failure_reason`, the persisted explanation for a Review failure. A null reason means no explanation was recorded, including for older failed Reviews; it does not mean the Review succeeded. Use `status` to determine the lifecycle state. Behavior summaries are null when the caller cannot read recorded replay content.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `repo` | string, optional | Nonempty repository full name (`owner/name`); surrounding whitespace is trimmed |
+| `pr_number` | positive integer, optional | Pull request number |
+| `limit` | integer (1–50), optional | Maximum reviews to return; default 20 |
+| `org` | string, optional | Organization reference from `list_organizations`; omit for the default organization |
+
+### `get_simulation_review`
+
+Read one Review, including replays, comparison results, and behavior assessment. Returns `{ data: {...} }`. `data.failure_reason` is the nullable persisted Review failure explanation described above; it is separate from `data.snapshots[].failure_reason` (build failure) and `smoke_error` (verification failure). Do not infer a missing Review reason from a different subsystem.
+
+Poll while Review status is `created`, `planning`, `running`, or `verifying`. `commented` means the replay comparison finished, but behavior may still be `collecting` or `finalizing`. Stop on Review `failed` or `superseded`; behavior is terminal at `complete`, `partial`, `failed`, or `superseded`. Share the returned `url` with the user. Summary and observations are null when the caller cannot read recorded replay content.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `review_id` | UUID string, required | Review ID from `list_simulation_reviews` |
+| `org` | string, optional | Organization reference from `list_organizations`; omit for the default organization |
 
 ---
 
