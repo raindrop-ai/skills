@@ -329,6 +329,68 @@ The response also includes `cadence_minutes` and `last_run_at`: stumbles are det
 
 ---
 
+## Experiments
+
+### `create_experiment`
+Save a comparison of existing traffic. This does not run or deploy an agent.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | string | Required, 1–120 characters |
+| `description` | string | Optional, up to 2,000 characters |
+| `configurator_config` | object | Required A/B cohort configuration with a date range on each side (1–30 days; prefer 7 or less), plus model, feature flag, property, or other cohort filters |
+| `module_config` | object | Optional module settings; put the outcome rule in `signals.success` |
+| `project` | string | Project slug; omit for default project |
+| `org` | string | Organization scope when needed |
+
+`module_config.signals.success` has `mode` (`all` or `selected`), `signalIds` (query IDs),
+`unit` (`users` or `events`), and `direction` (`negatives_down`, `positives_up`, or `both`).
+Use `signal_id` for instrumented signals and `id` for topics/code; experiment results expose
+`query_id`. For example:
+
+```json
+{"signals":{"success":{"mode":"selected","signalIds":["failure-signal-id"],"unit":"events","direction":"negatives_down"}}}
+```
+
+Ask what better means when the signal set or unit is unclear. Keep outcomes out of cohort
+filters. Selected mode includes explicitly chosen hidden/low-performance signals; all mode
+uses visible active topic, code, and instrumented signals. Regex and property metrics do not
+contribute to the verdict. Missing `success` retains visible signals, users, both directions.
+A single-sentiment set forces its corresponding direction. Creation requires the Experiments
+plan feature and OAuth `write:experiments`. Returns the saved row and scoped URL. There is
+no update tool; include the rule when creating, or edit it on the experiment page.
+
+### `get_experiment`
+Start here for a comparison: find an existing saved experiment before creating another.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | UUID string | Saved experiment ID; takes precedence over name |
+| `name` | string | Saved name; duplicate names return matches to select by ID. Omit name and ID to list experiments newest first |
+| `cursor` | nonnegative integer | Continue with the previous `next_cursor` and same name or ID |
+| `project` | string | Project slug; omit for default project |
+| `org` | string | Organization scope when needed |
+
+Returns `success_rule`, `evaluation`, cohort counts, per-signal user/event metrics,
+positive/negative summaries, the verdict, and a link. Metric arrays follow `metric_columns`:
+`baseline_count`, `experiment_count`, `baseline_pct`, `experiment_pct`, `change_pp`,
+`relative_change_pct`. Report counts with rates. 10% to 8% is -2pp and -20% relative.
+Null means undefined. Follow `next_cursor` until null.
+
+Report the returned verdict. The editor and tools use the same selected signals, effective
+unit/direction, sample check, and 95% two-proportion interval. `evaluation` includes
+`baselineN`, `experimentN`, `hasLowSampleSize`, and sentiment statistics with `lowerPp`,
+`upperPp`, `pValue`, and `excludesZero`. A winner requires an interval excluding zero and a
+passing sample check; opposing significant results are mixed. An unavailable selected
+signal prevents a verdict. Do not infer another winner from a fixed 2pp threshold or
+individual signal rows. Confidence in the measured comparison does not establish causation.
+
+Triage web/Slack can create and read saved experiments. MCP-delegated Triage reads them;
+use the direct MCP tool to create one. Triage's `suggest_experiment` accepts the same
+`module_config` and carries it through its preview and prefilled experiment URL.
+
+---
+
 ## Docs & Feedback
 
 ### `raindrop_search_docs`
