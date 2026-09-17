@@ -274,11 +274,33 @@ Pass `span_type: "SYSTEM_PROMPT"` to get the full untruncated system prompt for 
 
 Oversized responses come back with span payloads truncated inline and a `note` — call again with `span_id` (or `span_type` / `status`) to read one payload in full.
 
+For a suspicious tool call, re-fetch its `span_id` with `include_context: true` to compare the
+call's input/output with the model decision before it and the answer afterward. This adds up
+to eight ancestors and the nearest preceding/following model generations in the closest
+parent branch with a neighbor. Context comes from the anchor's trace in the same project,
+including other events in that trace. It is returned alongside the anchor in chronological
+`data`, with IDs identifying the relationships in `context`. These are temporal neighbors,
+not proof of causation. Existing `span_type`, `status`, and `limit` apply to the anchor lookup;
+extra context is not filtered by them.
+
+```json
+{"project":"support","event_id":"<event-id>","span_id":"<refund-span-id>","include_context":true}
+```
+
+Discovery is bounded to 24 hours before/after the anchor's start and 2,000 spans. Check
+`context.incomplete`, `scan_limit_reached`, `ancestor_limit_reached`, and the returned
+`window_start_ns` / `window_end_ns`. Missing parent records or capped reads can leave context
+incomplete. A null neighbor means none was found within those bounds, not that no model call
+occurred. If the scan cap is exceeded, only the anchor is returned; use ordinary `get_trace`
+with `cursor` to inspect the trace. To re-read a truncated payload, use its `span_id` without
+`include_context`.
+
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `event_id` | string | Event ID to get traces for |
 | `trace_id` | string | OpenTelemetry trace ID to look up directly |
-| `span_id` | string | Return only this span — use after a truncated response |
+| `span_id` | string | Return this span; optionally add related spans with `include_context` |
+| `include_context` | boolean | With `span_id`, include ancestors and nearby model generations in the same branch. Default false. Cannot combine with `cursor` or `SYSTEM_PROMPT`. |
 | `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` \| `"SYSTEM_PROMPT"` | Filter to a specific span type; `"SYSTEM_PROMPT"` returns the full system prompt |
 | `status` | `"UNSET"` \| `"OK"` \| `"ERROR"` | Filter by span status — use `"ERROR"` to find failures |
 | `limit` | int (1–200) | Max spans to return (default: 50) |
