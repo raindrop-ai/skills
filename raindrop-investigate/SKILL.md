@@ -106,6 +106,15 @@ Author new code signals from your MCP client. Supporting clients (Claude, Codex,
 
 One session, one project, review before labels, never auto-create.
 
+### Building Dashboards via MCP
+
+`list_dashboards` is read-only. To create a dashboard or add/change panels, call `ask_agent_question`. Describe the result and identify the project explicitly. For an existing dashboard, include its scoped URL or ID. Call `get_agent_progress` until completion. The completed response describes the saved change and links to the dashboard.
+
+- "Create a dashboard in project triage showing hourly event volume and p95 latency over seven days."
+- "Add an hourly tool-error panel to dashboard <ID> in project triage."
+
+Dashboards belong to one project. Name it in the question when the conversation is not pinned to a project, or Triage will ask before saving. New dashboards are shared with the org.
+
 ## Refining Existing Signals via MCP
 
 The preferred path starts during a deep dive into a specific signal: inspect
