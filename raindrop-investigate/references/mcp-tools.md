@@ -367,3 +367,39 @@ Submit feedback to the Raindrop team. Posts directly to their internal channel.
 |-----------|------|-------------|
 | `feedback` | string | Description of the issue, what didn't work, or what was unclear |
 | `category` | `"bug"` \| `"docs"` \| `"unclear"` \| `"feature_request"` \| `"other"` | Feedback category |
+
+## Simulation and evaluation authoring
+
+### `replay_event`
+
+Replay a captured event against a ready World. Required: `event_id`, `world_id`,
+and `project`. Optional: `org`, `event_timestamp` (required for events older than
+seven days), `commit_sha` (40 lowercase hexadecimal characters identifying a
+pushed agent commit), and `world_version_id` (UUID selecting saved World files).
+Omitting revision overrides selects the current World and its source commit.
+The response contains `replay_id`, `url`, `world_id`, `world_version_id`,
+`commit_sha`, `event_id`, `status`, and `started_at`. Poll `get_replay_progress`
+with `replay_id`; return the replay URL to the user.
+
+### `publish_eval_dataset`
+
+Publish an immutable evaluation dataset from event IDs. Raindrop captures replay
+context server-side; no assembled trace is passed by the agent. Requires the
+existing eval write permission. Captures are redacted and scoped to the selected
+project.
+
+Required inputs: `slug`, `name`, `requestKey` (UUID),
+`expectedCurrentVersionId` (UUID, or null when creating), and `cases`. Optional:
+`org` and `project` (defaults to the caller's project).
+
+Each case has `id`, `name`, `properties` (string values), `sourceEventId`, optional
+`sourceEventTimestamp`, and optional `expectation`. The expectation has a
+`description`, `basis` (`human`, `policy`, `code`, or `inferred`), and optional
+`reference`. Use explicit expectations for regression cases. Missing or partial
+capture evidence fails publication. Reuse `requestKey` only to resume the same
+publication; retries retain the original captured evidence.
+
+Returns the dataset identity, immutable version/fingerprint, and case manifests
+with saved capture references. Expectations are versioned with the cases and
+sent only to remote grading, never to the simulated agent. Hosted evaluators can
+read `trace.caseContext`; `ctx.judge` automatically receives that context.
