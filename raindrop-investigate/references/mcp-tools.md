@@ -390,7 +390,8 @@ project.
 
 Required inputs: `slug`, `name`, `requestKey` (UUID),
 `expectedCurrentVersionId` (UUID, or null when creating), and `cases`. Optional:
-`org` and `project` (defaults to the caller's project).
+`org` and `project` (defaults to the organization's default project). Pass
+`project` explicitly when capturing events from another project.
 
 Each case has `id`, `name`, `properties` (string values), `sourceEventId`, optional
 `sourceEventTimestamp`, and optional `expectation`. The expectation has a
