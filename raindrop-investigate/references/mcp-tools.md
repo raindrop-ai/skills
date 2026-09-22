@@ -389,7 +389,7 @@ existing eval write permission. Captures are redacted and scoped to the selected
 project.
 
 Required inputs: `slug`, `name`, and `cases`. Optional: `requestKey` (generated if omitted),
-`expectedCurrentVersionId` (null for creation; supply the current version for an intentional update),
+`expectedCurrentVersionId` (omit to use the current head; null requires a new dataset; a version ID guards against concurrent updates),
 `org`, and `project`. Pass project explicitly when capturing events outside the default project.
 
 Each case has `id`, `name`, `properties`, `sourceEventId`, optional `sourceEventTimestamp`,
