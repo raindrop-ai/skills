@@ -388,19 +388,48 @@ context server-side; no assembled trace is passed by the agent. Requires the
 existing eval write permission. Captures are redacted and scoped to the selected
 project.
 
-Required inputs: `slug`, `name`, `requestKey` (UUID),
-`expectedCurrentVersionId` (UUID, or null when creating), and `cases`. Optional:
-`org` and `project` (defaults to the organization's default project). Pass
-`project` explicitly when capturing events from another project.
+Required inputs: `slug`, `name`, and `cases`. Optional: `requestKey` (generated if omitted),
+`expectedCurrentVersionId` (null for creation; supply the current version for an intentional update),
+`org`, and `project`. Pass project explicitly when capturing events outside the default project.
 
-Each case has `id`, `name`, `properties` (string values), `sourceEventId`, optional
-`sourceEventTimestamp`, and optional `expectation`. The expectation has a
-`description`, `basis` (`human`, `policy`, `code`, or `inferred`), and optional
-`reference`. Use explicit expectations for regression cases. Missing or partial
-capture evidence fails publication. Reuse `requestKey` only to resume the same
-publication; retries retain the original captured evidence.
+Each case has `id`, `name`, `properties`, `sourceEventId`, optional `sourceEventTimestamp`,
+optional `expectation`, and optional `expectedVerdict`. Expectation requires description;
+basis (`human`, `policy`, `code`, `inferred`) and reference are optional provenance.
+Expected verdict is `{ pass: boolean }`, `{ score: 1..5 }`, or `{ value: number }`.
+It describes the recorded example for evaluator validation, not a future simulation's outcome.
+Captures and expectations are immutable and scoped to the selected project. Missing or partial
+capture evidence fails publication. Reuse requestKey only to resume the same publication.
 
-Returns the dataset identity, immutable version/fingerprint, and case manifests
-with saved capture references. Expectations are versioned with the cases and
-sent only to remote grading, never to the simulated agent. Hosted evaluators can
-read `trace.caseContext`; `ctx.judge` automatically receives that context.
+Returns dataset identity, version/fingerprint, and case manifests. Expectations reach only
+grading via trace.caseContext; ctx.judge receives that context automatically.
+
+### `create_eval`
+
+Create a complete program with its reference dataset and automatically validate it remotely.
+Required: name, intent, program_source, reference_dataset (dataset slug or ID).
+Optional: slug, description, rules (3–12 policy steps if supplied), execution_mode
+(deterministic by default, judge when calling ctx.judge), output_type (boolean by default,
+score or number also supported), org, project. Output type is immutable.
+
+Reference datasets require expectedVerdict for every case, matching the output type,
+at most 50 cases, and both pass/fail examples for boolean evaluators. Returns the eval
+and queued validation. Read get_eval for ready, reference_dataset_id, and validations.
+Validation history contains disagreements and execution errors without ordinary UI runs.
+
+### `update_eval_program`
+
+Required: eval (slug or ID), name, intent, execution_mode, program_source.
+Optional: expected_program_version (concurrency guard), org, project. Output type cannot change.
+Reference-backed evaluators automatically validate edits before publishing; a failed candidate
+leaves the existing ready program usable. The response includes validation history.
+
+### Simulation SDK
+
+Use runSimulationEval(client, { eval, worldId, commitSha }) with a pushed agent SHA.
+Omit programVersion to use the latest ready program; the accepted reference revision is the
+default dataset. Optional datasetId selects separate coverage. Version pins are recorded
+server-side. Use { baselineExecutionId, commitSha } for a new run with baseline criteria and
+World version. compareEvalRuns returns the scoped UI comparison link.
+
+run_eval grades existing traces and creates ordinary UI runs. Do not use it for smoke tests;
+create_eval and update_eval_program already validate their reference examples.
