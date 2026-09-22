@@ -425,10 +425,11 @@ leaves the existing ready program usable. The response includes validation histo
 
 ### Simulation SDK
 
-Use runSimulationEval(client, { eval, worldId, commitSha }) with a pushed agent SHA.
-Omit programVersion to use the latest ready program; the accepted reference revision is the
-default dataset. Optional datasetId selects separate coverage. Version pins are recorded
-server-side. Use { baselineExecutionId, commitSha } for a new run with baseline criteria and
+Use runSimulationEval(client, { evals: [evalSlug, otherEvalSlug], worldId, commitSha }) with a pushed agent SHA.
+Pass 1–20 eval slugs or IDs; each uses its latest ready version to grade the same simulation outputs.
+A shared validated reference revision is the default dataset. Pass datasetId when references differ
+or to select separate coverage. The single eval shorthand and explicit version pins remain supported.
+Version pins are recorded server-side. Use { baselineExecutionId, commitSha } for a new run with baseline criteria and
 World version. compareEvalRuns returns the scoped UI comparison link.
 
 run_eval grades existing traces and creates ordinary UI runs. Do not use it for smoke tests;
