@@ -69,7 +69,7 @@ Single event by ID. Returns full input, output, properties, and matched signals,
 | `project` | string | **Required.** Project slug from `raindrop_list_projects` |
 
 ### `raindrop_search_events`
-Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to find events matching a natural language description — this is the primary tool for pattern discovery.
+Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to find events matching a natural language description — this is the primary tool for pattern discovery. Regex requires a period of at most 24 hours and at least one nonblank `user_id`, `convo_id`, `event_name`, or `signal_id`. A small `limit`, a project alone, or property/trait/flag filters alone do not satisfy this requirement. Oversized or unfiltered regex requests return an error; shorten the period and add a supported filter before retrying.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -78,8 +78,10 @@ Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to 
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
 | `user_id` | string | Filter by user |
+| `convo_id` | string | Filter by conversation |
 | `event_name` | string | Filter by event name |
-| `period` | string | How far back to search (default: `"24h"`) |
+| `signal_id` | string | Filter by signal |
+| `period` | string | How far back to search (default: `"24h"`); max 24h for regex, 90d otherwise |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_event_count`
@@ -95,15 +97,15 @@ Aggregate event count with filters. Use for quantifying impact.
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_event_timeseries`
-Event counts bucketed by time interval. Use for trend analysis. Ensure `period` is wider than `interval` (e.g., use `"7d"` or wider for daily buckets).
+Event counts bucketed by time interval. Use for trend analysis. Requests may span at most 1,000 buckets, including partially covered edge buckets. `"minute"` produces 15-minute buckets. Use `"minute"` for `"7d"`, `"hour"` for `"30d"`, and `"day"` for `"90d"`. Oversized requests return an error: shorten `period` or choose a coarser `interval`; the tool never silently truncates the requested range.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `interval` | `"minute"` \| `"hour"` \| `"day"` \| `"week"` \| `"month"` | Bucket size (default: `"day"`) |
+| `interval` | `"minute"` \| `"hour"` \| `"day"` \| `"week"` \| `"month"` | Bucket size (default: `"day"`); `"minute"` means 15 minutes; max 1,000 buckets |
 | `user_id` | string | Filter by user |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
-| `period` | string | Time range (default: `"7d"`) |
+| `period` | string | Time range (default: `"7d"`); max 90d, subject to the bucket limit |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_event_facets`
