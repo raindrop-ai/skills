@@ -3,6 +3,7 @@
 ## Contents
 
 - [Projects](#projects)
+- [RQL](#rql)
 - [Events](#events)
 - [Conversations](#conversations)
 - [Users](#users)
@@ -16,13 +17,30 @@
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
-**Time ranges:** All tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`) rather than explicit start/end timestamps. Max lookback is 90 days.
+**Time ranges:** Most time-scoped read tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`). `raindrop_run_rql` uses a timestamp predicate in its query; event and trace windows are at most seven days, and raw-text searches are at most 24 hours with a selective predicate. User and conversation rollups represent lifetime or whole-conversation totals.
 
-**Pagination:** All list tools use `cursor` (not `offset`) for pagination. The cursor is returned in each response.
+**Pagination:** List tools use `cursor` (not `offset`) for pagination. `raindrop_run_rql` uses `LIMIT` and has no cursor.
 
 **Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — call `raindrop_list_projects` first; if the org has more than one project, ask the user which slug to use. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
 
 **All-projects reads:** Pass `*` as `project` on the org-capable read tools — `raindrop_list_events`, `raindrop_search_events`, `raindrop_get_event_count`, `raindrop_get_event_timeseries`, `raindrop_get_event_facets`, `raindrop_list_conversations`, and `raindrop_list_users` — to read across all active projects; rows carry a `project_id`. Single-row lookups (`raindrop_get_event`, `raindrop_get_conversation`, `raindrop_get_trace`, signals, issues, stumbles, dashboard) still require a concrete project (not `*`).
+
+---
+
+## RQL
+
+### `raindrop_run_rql`
+Run one read-only RQL `SELECT` over `events`, `traces`, `users`, or `conversations` in one concrete project. Call `raindrop_list_projects` to resolve the slug. RQL is useful for grouped counts, trends, and filtered records. Use `raindrop_skills` with `topic: "rql"` for syntax, the field and function reference, and checked examples. Keep semantic search, efficient dedicated rollups, signal tools, and event or trace detail tools for questions they answer better.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `org` | string | Optional organization selection |
+| `project` | string | **Required.** One concrete project slug; `*` is not supported |
+| `query` | string | Required RQL `SELECT`, 1–20,000 characters |
+
+Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`. Give an explicit 24-hour range when the user gives no timeframe; without a timestamp predicate, the compiler applies seven days to event and trace queries. Explicit event and trace windows cannot exceed seven days. Raw-text searches need at most 24 hours plus a selective predicate. A `LIMIT` caps returned rows, not scan cost. The default is 100 rows; the explicit maximum is 1,000.
+
+Results include `columns`, `data`, `rowCount`, limit and truncation flags, `statistics`, default-window information, and supported `reference_targets`. `rowCount` counts returned rows before clipping, not all matching events. Report the time range and any clipping. Errors carry a message and source span for query correction; narrow a timed-out query before retrying. One query may run per organization at a time. Content is redacted. Organizations with zero data retention enabled or unverified cannot run this tool.
 
 ---
 
