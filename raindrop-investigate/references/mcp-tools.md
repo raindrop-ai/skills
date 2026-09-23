@@ -367,3 +367,70 @@ Submit feedback to the Raindrop team. Posts directly to their internal channel.
 |-----------|------|-------------|
 | `feedback` | string | Description of the issue, what didn't work, or what was unclear |
 | `category` | `"bug"` \| `"docs"` \| `"unclear"` \| `"feature_request"` \| `"other"` | Feedback category |
+
+## Simulation and evaluation authoring
+
+### `replay_event`
+
+Replay a captured event against a ready World. Required: `event_id`, `world_id`,
+and `project`. Optional: `org`, `event_timestamp` (required for events older than
+seven days), `commit_sha` (40 lowercase hexadecimal characters identifying a
+pushed agent commit), and `world_version_id` (UUID selecting saved World files).
+Omitting revision overrides selects the current World and its source commit.
+The response contains `replay_id`, `url`, `world_id`, `world_version_id`,
+`commit_sha`, `event_id`, `status`, and `started_at`. Poll `get_replay_progress`
+with `replay_id`; return the replay URL to the user.
+
+### `publish_eval_dataset`
+
+Publish an immutable evaluation dataset from event IDs. Raindrop captures replay
+context server-side; no assembled trace is passed by the agent. Requires the
+existing eval write permission. Captures are redacted and scoped to the selected
+project.
+
+Required inputs: `slug`, `name`, and `cases`. Optional: `requestKey` (generated if omitted),
+`expectedCurrentVersionId` (omit to use the current head; null requires a new dataset; a version ID guards against concurrent updates),
+`org`, and `project`. Pass project explicitly when capturing events outside the default project.
+
+Each case has `id`, `name`, `properties`, `sourceEventId`, optional `sourceEventTimestamp`,
+optional `expectation`, and optional `expectedVerdict`. Expectation requires description;
+basis (`human`, `policy`, `code`, `inferred`) and reference are optional provenance.
+Expected verdict is `{ pass: boolean }`, `{ score: 1..5 }`, or `{ value: number }`.
+It describes the recorded example for evaluator validation, not a future simulation's outcome.
+Captures and expectations are immutable and scoped to the selected project. Missing or partial
+capture evidence fails publication. Reuse requestKey only to resume the same publication.
+
+Returns dataset identity, version/fingerprint, and case manifests. Expectations reach only
+grading via trace.caseContext; ctx.judge receives that context automatically.
+
+### `create_eval`
+
+Create a complete program with its reference dataset and automatically validate it remotely.
+Required: name, intent, program_source, reference_dataset (dataset slug or ID).
+Optional: slug, description, rules (3–12 policy steps if supplied), execution_mode
+(deterministic by default, judge when calling ctx.judge), output_type (boolean by default,
+score or number also supported), org, project. Output type is immutable.
+
+Reference datasets require expectedVerdict for every case, matching the output type,
+at most 50 cases, and both pass/fail examples for boolean evaluators. Returns the eval
+and queued validation. Read get_eval for ready, reference_dataset_id, and validations.
+Validation history contains disagreements and execution errors without ordinary UI runs.
+
+### `update_eval_program`
+
+Required: eval (slug or ID), name, intent, execution_mode, program_source.
+Optional: expected_program_version (concurrency guard), org, project. Output type cannot change.
+Reference-backed evaluators automatically validate edits before publishing; a failed candidate
+leaves the existing ready program usable. The response includes validation history.
+
+### Simulation SDK
+
+Use runSimulationEval(client, { evals: [evalSlug, otherEvalSlug], worldId, commitSha }) with a pushed agent SHA.
+Pass 1–20 eval slugs or IDs; each uses its latest ready version to grade the same simulation outputs.
+A shared validated reference revision is the default dataset. Pass datasetId when references differ
+or to select separate coverage. The single eval shorthand and explicit version pins remain supported.
+Version pins are recorded server-side. Use { baselineExecutionId, commitSha } for a new run with baseline criteria and
+World version. compareEvalRuns returns the scoped UI comparison link.
+
+run_eval grades existing traces and creates ordinary UI runs. Do not use it for smoke tests;
+create_eval and update_eval_program already validate their reference examples.
