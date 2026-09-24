@@ -21,7 +21,7 @@ Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
 **Pagination:** List tools use `cursor` (not `offset`) for pagination. `raindrop_run_rql` uses `LIMIT` and has no cursor.
 
-**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — call `raindrop_list_projects` first; if the org has more than one project, ask the user which slug to use. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
+**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed; ask the user if several projects could apply. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
 
 **All-projects reads:** Pass `*` as `project` on the org-capable read tools — `raindrop_list_events`, `raindrop_search_events`, `raindrop_get_event_count`, `raindrop_get_event_timeseries`, `raindrop_get_event_facets`, `raindrop_list_conversations`, and `raindrop_list_users` — to read across all active projects; rows carry a `project_id`. Single-row lookups (`raindrop_get_event`, `raindrop_get_conversation`, `raindrop_get_trace`, signals, issues, stumbles, dashboard) still require a concrete project (not `*`).
 
@@ -29,8 +29,15 @@ Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
 ## RQL
 
+### `raindrop_skills`
+Load the guide for the task: `rql` for counts, breakdowns, trends, and comparisons; `rql_reference` for the full RQL schema and functions; `explore` for individual records and semantic search; `signals` for signal authoring; `evals` for eval workflows; and `triage` for explicit delegation to Raindrop Triage. Analytical questions can start with `rql` directly.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `topic` | string | Optional guide name; omit to list available guides |
+
 ### `raindrop_run_rql`
-Run one read-only RQL `SELECT` over `events`, `traces`, `users`, or `conversations` in one concrete project. Call `raindrop_list_projects` to resolve the slug. RQL is useful for grouped counts, trends, and filtered records. Use `raindrop_skills` with `topic: "rql"` for syntax, the field and function reference, and checked examples. Keep semantic search, efficient dedicated rollups, signal tools, and event or trace detail tools for questions they answer better.
+Run one read-only RQL `SELECT` over `events`, `traces`, `users`, or `conversations` in one concrete project. Use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed. Use RQL for counts, breakdowns, trends, and comparisons. Load `raindrop_skills` with `topic: "rql"` directly for common event fields and checked examples; loading `explore` first is unnecessary. Use `topic: "rql_reference"` for the full table and function reference and additional examples. Keep semantic search, efficient dedicated rollups, signal tools, and event or trace detail tools for questions they answer better. Give computed expressions aliases that do not reuse source column names.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
