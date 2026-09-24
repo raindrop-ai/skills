@@ -367,3 +367,29 @@ Submit feedback to the Raindrop team. Posts directly to their internal channel.
 |-----------|------|-------------|
 | `feedback` | string | Description of the issue, what didn't work, or what was unclear |
 | `category` | `"bug"` \| `"docs"` \| `"unclear"` \| `"feature_request"` \| `"other"` | Feedback category |
+
+---
+
+## Evaluation datasets
+
+### `publish_eval_dataset`
+
+Capture source events into an immutable eval dataset version. Pass `slug`, `name`,
+and `cases`; each case needs `id`, `name`, `properties` (string values), and
+`sourceEventId`. For events older than seven days, include
+`sourceEventTimestamp`. Cases may include `expectation` and `expectedVerdict`.
+The server captures the complete trace; do not assemble or upload it in the
+tool call. `org`, `project`, `requestKey`, and `expectedCurrentVersionId` are
+optional. Reuse a request key only for the same publication.
+
+One case returns the dataset manifest immediately. Multiple cases return a
+`publicationId` and `status: "queued"`; poll `get_eval_dataset_publication`.
+This tool requires eval write access.
+
+### `get_eval_dataset_publication`
+
+Read a queued publication by `publication_id` (UUID), with optional `org` and
+`project`. The response is scoped to the selected project. When `status` is
+`completed`, `manifest` contains the dataset ID, version, and case references.
+When `status` is `failed`, inspect `error` and retry with a new request key.
+This tool requires eval write access.
