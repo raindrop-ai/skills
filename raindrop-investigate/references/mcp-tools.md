@@ -3,6 +3,7 @@
 ## Contents
 
 - [Projects](#projects)
+- [RQL](#rql)
 - [Events](#events)
 - [Conversations](#conversations)
 - [Users](#users)
@@ -16,13 +17,38 @@
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
-**Time ranges:** All tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`) rather than explicit start/end timestamps. Max lookback is 90 days.
+**Time ranges:** Most time-scoped read tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`). `raindrop_run_rql` accepts `time_range: {from, to}` for event and trace queries, with a maximum seven-day window and a default of the latest seven days. SQL predicates can narrow this window but cannot widen or move it. Keep raw-text searches within 24 hours with a selective predicate. User and conversation rollups represent lifetime or whole-conversation totals.
 
-**Pagination:** All list tools use `cursor` (not `offset`) for pagination. The cursor is returned in each response.
+**Pagination:** List tools use `cursor` (not `offset`) for pagination. `raindrop_run_rql` uses `LIMIT` and has no cursor.
 
-**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — call `raindrop_list_projects` first; if the org has more than one project, ask the user which slug to use. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
+**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed; ask the user if several projects could apply. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
 
 **All-projects reads:** Pass `*` as `project` on the org-capable read tools — `raindrop_list_events`, `raindrop_search_events`, `raindrop_get_event_count`, `raindrop_get_event_timeseries`, `raindrop_get_event_facets`, `raindrop_list_conversations`, and `raindrop_list_users` — to read across all active projects; rows carry a `project_id`. Single-row lookups (`raindrop_get_event`, `raindrop_get_conversation`, `raindrop_get_trace`, signals, issues, stumbles, dashboard) still require a concrete project (not `*`).
+
+---
+
+## RQL
+
+### `raindrop_skills`
+Load the guide for the task: `rql` for counts, breakdowns, trends, and comparisons; `rql_reference` for the full RQL schema and functions; `explore` for individual records and semantic search; `signals` for signal authoring; `evals` for eval workflows; and `triage` for explicit delegation to Raindrop Triage. Analytical questions can start with `rql` directly.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `topic` | string | Optional guide name; omit to list available guides |
+
+### `raindrop_run_rql`
+Run one read-only RQL `SELECT` over `events`, `traces`, `users`, or `conversations` in one concrete project. Use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed. Use RQL for counts, breakdowns, trends, and comparisons. Load `raindrop_skills` with `topic: "rql"` directly for common event fields and checked examples; loading `explore` first is unnecessary. Use `topic: "rql_reference"` for the full table and function reference and additional examples. Keep semantic search, efficient dedicated rollups, signal tools, and event or trace detail tools for questions they answer better. Give computed expressions aliases that do not reuse source column names.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `org` | string | Optional organization selection |
+| `project` | string | **Required.** One concrete project slug; `*` is not supported |
+| `query` | string | Required RQL `SELECT`, 1–20,000 characters |
+| `time_range` | object | Optional `{from, to}` ISO timestamps (inclusive start, exclusive end), at most seven days; defaults to the latest seven days for events and traces |
+
+Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`. MCP enforces a maximum seven-day window for events and traces. Pass `time_range: {from, to}` for historical or narrower windows; omission selects the latest seven days. Choose 24 hours when the user gives no timeframe. SQL predicates can narrow that window but cannot widen or move it. Query successive windows for longer investigations and reuse the same explicit window while paging. The window does not apply to lifetime user or conversation rollups. Keep raw-text and serialized-payload searches within 24 hours with a selective predicate. MCP uses the same RQL compiler as Triage. A `LIMIT` caps returned rows, not scan cost. The default is 100 rows; the explicit maximum is 1,000.
+
+Results include `columns`, `data`, `rowCount`, limit and truncation flags, `statistics`, the enforced `timeRange` for events and traces, default-window information, and supported `reference_targets`. `rowCount` counts returned rows before clipping, not all matching events. Report the time range and any clipping. Errors carry a message and source span for query correction; narrow a timed-out query before retrying. Content is redacted. Organizations with zero data retention enabled or unverified cannot run this tool.
 
 ---
 
