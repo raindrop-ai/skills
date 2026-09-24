@@ -17,7 +17,7 @@
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
-**Time ranges:** Most time-scoped read tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`). `raindrop_run_rql` uses a timestamp predicate in its query; event and trace queries default to seven days when no timestamp filter is given. Keep raw-text searches within 24 hours with a selective predicate. User and conversation rollups represent lifetime or whole-conversation totals.
+**Time ranges:** Most time-scoped read tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`). `raindrop_run_rql` accepts `time_range: {from, to}` for event and trace queries, with a maximum seven-day window and a default of the latest seven days. SQL predicates can narrow this window but cannot widen or move it. Keep raw-text searches within 24 hours with a selective predicate. User and conversation rollups represent lifetime or whole-conversation totals.
 
 **Pagination:** List tools use `cursor` (not `offset`) for pagination. `raindrop_run_rql` uses `LIMIT` and has no cursor.
 
@@ -44,10 +44,11 @@ Run one read-only RQL `SELECT` over `events`, `traces`, `users`, or `conversatio
 | `org` | string | Optional organization selection |
 | `project` | string | **Required.** One concrete project slug; `*` is not supported |
 | `query` | string | Required RQL `SELECT`, 1–20,000 characters |
+| `time_range` | object | Optional `{from, to}` ISO timestamps (inclusive start, exclusive end), at most seven days; defaults to the latest seven days for events and traces |
 
-Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`. Give an explicit 24-hour range when the user gives no timeframe; without a timestamp predicate, the compiler applies seven days to event and trace queries. The seven-day window is a default, not a maximum. Keep raw-text and serialized-payload searches within 24 hours with a selective predicate. MCP uses the same RQL compiler as Triage. Each MCP query has a server execution budget of 10 seconds, two threads, and 256 MiB of memory. A `LIMIT` caps returned rows, not scan cost. The default is 100 rows; the explicit maximum is 1,000.
+Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`. MCP enforces a maximum seven-day window for events and traces. Pass `time_range: {from, to}` for historical or narrower windows; omission selects the latest seven days. Choose 24 hours when the user gives no timeframe. SQL predicates can narrow that window but cannot widen or move it. Query successive windows for longer investigations and reuse the same explicit window while paging. The window does not apply to lifetime user or conversation rollups. Keep raw-text and serialized-payload searches within 24 hours with a selective predicate. MCP uses the same RQL compiler as Triage. A `LIMIT` caps returned rows, not scan cost. The default is 100 rows; the explicit maximum is 1,000.
 
-Results include `columns`, `data`, `rowCount`, limit and truncation flags, `statistics`, default-window information, and supported `reference_targets`. `rowCount` counts returned rows before clipping, not all matching events. Report the time range and any clipping. Errors carry a message and source span for query correction; narrow a timed-out query before retrying. One query may run per organization at a time. Content is redacted. Organizations with zero data retention enabled or unverified cannot run this tool.
+Results include `columns`, `data`, `rowCount`, limit and truncation flags, `statistics`, the enforced `timeRange` for events and traces, default-window information, and supported `reference_targets`. `rowCount` counts returned rows before clipping, not all matching events. Report the time range and any clipping. Errors carry a message and source span for query correction; narrow a timed-out query before retrying. Content is redacted. Organizations with zero data retention enabled or unverified cannot run this tool.
 
 ---
 
