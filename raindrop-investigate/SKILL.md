@@ -1,6 +1,6 @@
 ---
 name: raindrop-investigate
-description: Investigates and triages AI application issues and refines existing signals using Raindrop's MCP tools. Use when investigating AI product issues, refining signals after finding false positives, triaging bugs in LLM-powered features, analyzing user conversations, debugging agent behavior, or when the user mentions Raindrop signals, events, traces, conversations, or issues — even if they don't say "investigate" explicitly.
+description: Investigates AI application issues, creates and edits dashboards, and refines existing signals using Raindrop's MCP tools. Use when investigating AI product issues, refining signals after finding false positives, triaging bugs in LLM-powered features, analyzing user conversations, debugging agent behavior, or when the user mentions Raindrop signals, events, traces, conversations, or issues — even if they don't say "investigate" explicitly.
 ---
 
 # Raindrop Investigation Skill
@@ -23,7 +23,7 @@ Raindrop surfaces two complementary catalogs of problems. Know which one you're 
 - **Issues** are *broad shifts in your event distribution* — a metric moving across many events (e.g. a tool's error rate climbing, a model suddenly overrepresented in failures, a topic spiking). Each issue names the affected dimensions (tools/models/signals overrepresented in matched events) and the timeline. Reach for issues when the question is "what changed?" or "what's trending wrong at scale?"
 - **Stumbles** are *one-off bad experiences* — a single interaction where something went wrong for one user, that isn't (yet) a distribution-wide pattern. Each stumble is a unique failure mode from an individual event. Reach for stumbles when the question is "what specific bad experiences did users just have?"
 
-They don't overlap: the issues catalog does **not** include one-off stumbles, and a stumble is not promoted into an issue just because it exists. A thorough "what's going wrong today?" investigation checks **both** — pair `list_issues` with `search_stumbles`. Use the triage agent (`ask_agent_question`) when you want Raindrop to investigate both catalogs plus the underlying signals and events in one pass.
+They don't overlap: the issues catalog does **not** include one-off stumbles, and a stumble is not promoted into an issue just because it exists. A thorough "what's going wrong today?" investigation checks **both** — pair `list_issues` with `search_stumbles`. Use the triage agent (`ask_agent_question`) when the user explicitly asks to delegate to Raindrop Triage or to continue an existing Triage conversation. Otherwise investigate directly.
 
 ---
 
@@ -31,9 +31,9 @@ They don't overlap: the issues catalog does **not** include one-off stumbles, an
 
 ### Step 1: Orient — "What needs my attention?"
 
-Start with `get_dashboard` for a snapshot: event/user/conversation counts with trends, recent AI-discovered issues, and top active signals. Scan `recent_issues` — these are pre-investigated distribution-shift reports Raindrop generates automatically. Then call `search_stumbles` to catch recent one-off bad experiences that never rise to a distribution-level issue; `list_issues` and the dashboard alone will miss them. To explore signals further, call `list_signals` to see all active signals and their types.
+Start with `get_application_overview` for a snapshot: event/user/conversation counts with trends, recent AI-discovered issues, and top active signals. Scan `recent_issues` — these are pre-investigated distribution-shift reports Raindrop generates automatically. Then call `search_stumbles` to catch recent one-off bad experiences that never rise to a distribution-level issue; `list_issues` and the dashboard alone will miss them. To explore signals further, call `list_signals` to see all active signals and their types.
 
-If the org has more than one project, call `list_projects` first and pass the relevant slug as `project` to `get_dashboard` and every later call. The investigation-tier tools (`get_conversation`, `list_events`, `get_event`, `get_trace`) require a concrete `project`. Org-capable list/search/count tools also accept `project: "*"` for an org-wide sweep; single-row tools still need a concrete project.
+If the org has more than one project, call `list_projects` first and pass the relevant slug as `project` to `get_application_overview` and every later call. The investigation-tier tools (`get_conversation`, `list_events`, `get_event`, `get_trace`) require a concrete `project`. Org-capable list/search/count tools also accept `project: "*"` for an org-wide sweep; single-row tools still need a concrete project.
 
 ### Step 2: Investigate — "What's actually happening?"
 
@@ -107,14 +107,19 @@ Author new code signals from your MCP client. Supporting clients (Claude, Codex,
 
 One session, one project, review before labels, never auto-create.
 
-### Building Dashboards via MCP
+### Build and edit dashboards through MCP
 
-`list_dashboards` is read-only. To create a dashboard or add/change panels, call `ask_agent_question`. Describe the result and identify the project explicitly. For an existing dashboard, include its scoped URL or ID. Call `get_agent_progress` until completion. The completed response describes the saved change and links to the dashboard.
+Load `raindrop_skills` with `topic: "dashboards"` when the user asks to create a dashboard or change its panels. Use the direct tools. Both `create_dashboard` and `edit_dashboard` save immediately and require OAuth with `write:dashboards`. API keys can read shared dashboards but cannot save them. Do not delegate to Triage to work around missing write permission.
 
-- "Create a dashboard in project triage showing hourly event volume and p95 latency over seven days."
-- "Add an hourly tool-error panel to dashboard <ID> in project triage."
+Use the project the user selected or one already resolved in this organization. Use `list_projects` when needed and ask if the project is ambiguous. Pass a concrete `project` on every authoring call; `*` and the built-in Usage board are not supported for authoring. New dashboards are shared with the organization.
 
-Dashboards belong to one project. Name it in the question when the conversation is not pinned to a project, or Triage will ask before saving. New dashboards are shared with the org.
+For a new dashboard, preview every exact panel query with `preview_dashboard_panel_query`, then call `create_dashboard` with the title, optional time settings, and ordered panel definitions. The server assigns IDs and layout. For an existing dashboard, find it with `list_dashboards`, read its definition with `get_dashboard`, and call `edit_dashboard` with its `expected_revision` and edit actions. Preview every new or changed query first. On conflict, reload the definition and rebuild the edit rather than replaying old actions with a new revision.
+
+Load the `rql` guide for query syntax. Saved queries receive their time range from the dashboard; omit timestamp and end_timestamp filters from `WHERE` and `HAVING`. Preview uses an explicit `time_range: {from, to}` of at most seven days. Raw-text filters require at most 24 hours and a selective predicate. If the saved range is longer, preview a bounded subset and disclose it. Preview rows do not establish the full dashboard's values. Configure visualization fields with the exact query output aliases.
+
+Return the saved dashboard link and summarize the change. Creation is not idempotent: after an uncertain response, check `list_dashboards` before retrying. Do not claim a save succeeded unless the tool confirms it. See [the dashboard tool reference](references/mcp-tools.md#dashboards) for inputs.
+
+**Tool rename:** The old overview tool `get_dashboard` is now `get_application_overview`, with the same overview inputs and output. `get_dashboard` now reads a saved dashboard and requires a dashboard ID or name and a project. Refresh cached tool inventories and migrate old overview calls.
 
 ## Refining Existing Signals via MCP
 

@@ -6,6 +6,7 @@
 - [Events](#events)
 - [Conversations](#conversations)
 - [Users](#users)
+- [Dashboards](#dashboards)
 - [Signals](#signals)
 - [Signal authoring (MCP_SIGNAL)](#signal-authoring-mcp_signal)
 - [Existing signal refinement](#existing-signal-refinement)
@@ -16,7 +17,7 @@
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
-**Time ranges:** All tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`) rather than explicit start/end timestamps. Max lookback is 90 days.
+**Time ranges:** Most read tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`) with a maximum lookback of 90 days. Dashboard previews instead require `time_range: {from, to}` with ISO timestamps spanning at most seven days. Saved dashboards use their own time settings.
 
 **Pagination:** All list tools use `cursor` (not `offset`) for pagination. The cursor is returned in each response.
 
@@ -173,10 +174,84 @@ Single user with traits, first/last seen timestamps, and event count.
 
 ---
 
-## Signals
+## Dashboards
+
+Load `raindrop_skills` with `topic: "dashboards"` before authoring. Use `topic: "rql"` or `"rql_reference"` for query syntax. All tools accept optional `org` to select an accessible organization. Direct writes require an OAuth user and `write:dashboards`; API keys can read organization-shared dashboards but cannot create or edit them. Both write tools save immediately. Refresh cached tool inventories after the overview rename.
+
+### `raindrop_list_dashboards`
+
+List accessible dashboards, including the built-in Usage board. Omit `project` to list across projects, or pass a project to narrow the catalog. Pass `dashboard_id` or an exact `name` for a snapshot; `dashboard_id` wins. Catalog entries include IDs, titles, scope, links, and panel summaries, without query text. Private dashboards appear only to their owner.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Optional project selection. Omit to list across projects. |
+| `dashboard_id` | string | Optional saved dashboard UUID or `default-usage`. |
+| `name` | string | Optional case-insensitive exact title. |
+| `period` | string | Optional snapshot range: `1h`, `6h`, `24h`, `3D`, `7D`, or `30D`. Defaults to the saved range. |
 
 ### `raindrop_get_dashboard`
-Snapshot of your application: event/user/conversation counts with period-over-period trends, recent AI-discovered issues, and top active signals. Start every investigation here.
+
+Read a saved dashboard before editing. Returns `{data: ...}` containing `dashboard_id`, `project_id`, title, description, visibility, revision, `time_settings`, panels as `{id, panel}` in layout order, and a scoped URL. The built-in Usage board is available through `list_dashboards` and cannot be edited.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete project; `*` is unsupported. |
+| `dashboard_id` | string | Saved dashboard UUID. Supply this or `name`; ID wins when both are set. |
+| `name` | string | Case-insensitive exact title. Ambiguous titles require selection by ID. |
+
+### `raindrop_preview_dashboard_panel_query`
+
+Validate and execute one exact panel query with dashboard time-range semantics. Omit timestamp and end_timestamp filters from `WHERE` and `HAVING`; the dashboard supplies them. Match visualization fields to query output aliases. Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete project owning the dashboard. |
+| `query` | string | Required final RQL query, 1–20,000 characters. |
+| `time_range` | object | Required `{from, to}` ISO timestamps, positive duration of at most seven days. |
+
+Raw-text filters require at most 24 hours and a selective predicate. For longer saved ranges, preview a bounded subset and disclose it. Results include bounded rows, columns, query statistics, and preview metadata. They validate the query and do not establish the full dashboard's values or cost. Retention restrictions, redaction, query capacity controls, timeouts, and result limits apply. Narrow or simplify a timed-out query before retrying.
+
+### `raindrop_create_dashboard`
+
+Save a new organization-shared dashboard. The server assigns panel IDs and layout. Creation is not idempotent: after an uncertain response, check the catalog before retrying.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete owning project. |
+| `title` | string | Required dashboard title. |
+| `description` | string or null | Optional description. |
+| `time_settings` | object | Optional dashboard range and refresh settings; defaults to the last seven days with refresh off. |
+| `panels` | array | Required complete panels in display order. Query panels include `kind: "query"`, title, query, and visualization; text panels include `kind: "text"`, title, and body. |
+
+Preview each exact query before saving. The result contains `success`, `ui_type: "dashboard_created"`, `dashboard_id`, `project_id`, title, revision, `panel_ids`, and URL.
+
+### `raindrop_edit_dashboard`
+
+Apply actions to an existing dashboard and save them atomically. Read `get_dashboard` first. Query updates include the complete query and visualization together; preview every new or changed query.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete owning project. |
+| `dashboard_id` | string | Required saved dashboard UUID. |
+| `expected_revision` | integer | Required revision from the latest definition read. |
+| `summary` | string | Required short summary of the change. |
+| `actions` | array | Required ordered edit actions. |
+
+Supported actions are `add_panel`, `update_query_panel`, `update_text_panel`, `duplicate_panel`, `remove_panel`, `set_panel_size`, `tidy_layout`, `update_dashboard_details`, and `set_time_settings`. Target existing panels by their returned `panel_id`. For size changes use `compact`, `standard`, `wide`, or `full`; never supply grid coordinates.
+
+On a revision conflict, reload and rebuild the actions. Do not just change `expected_revision`. Validation failures save nothing. The result contains `success`, `ui_type: "dashboard_edit_proposal"`, `dashboard_id`, `project_id`, summary, revision, `affected_panel_ids`, and URL. Despite that response label, the edit is already saved.
+
+---
+
+## Signals
+
+### `raindrop_get_application_overview`
+Snapshot of your application: event/user/conversation counts with period-over-period trends, recent AI-discovered issues, and top active signals. Use this for an application overview. This tool was renamed from `raindrop_get_dashboard`; that name now reads a saved dashboard definition.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
