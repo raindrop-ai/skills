@@ -201,7 +201,7 @@ Single user with traits, first/last seen timestamps, and event count.
 
 ## Signals
 
-### `raindrop_get_dashboard`
+### `raindrop_get_application_overview`
 Snapshot of your application: event/user/conversation counts with period-over-period trends, recent AI-discovered issues, and top active signals. Start every investigation here.
 
 | Parameter | Type | Description |

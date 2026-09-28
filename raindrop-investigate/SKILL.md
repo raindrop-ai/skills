@@ -31,9 +31,9 @@ They don't overlap: the issues catalog does **not** include one-off stumbles, an
 
 ### Step 1: Orient — "What needs my attention?"
 
-Start with `get_dashboard` for a snapshot: event/user/conversation counts with trends, recent AI-discovered issues, and top active signals. Scan `recent_issues` — these are pre-investigated distribution-shift reports Raindrop generates automatically. Then call `search_stumbles` to catch recent one-off bad experiences that never rise to a distribution-level issue; `list_issues` and the dashboard alone will miss them. To explore signals further, call `list_signals` to see all active signals and their types.
+Start with `get_application_overview` for a snapshot: event/user/conversation counts with trends, recent AI-discovered issues, and top active signals. Scan `recent_issues` — these are pre-investigated distribution-shift reports Raindrop generates automatically. Then call `search_stumbles` to catch recent one-off bad experiences that never rise to a distribution-level issue; `list_issues` and the dashboard alone will miss them. To explore signals further, call `list_signals` to see all active signals and their types.
 
-Pass the chosen project slug as `project` to `get_dashboard` and every later call. Use `list_projects` to discover projects or verify the selection when needed. The investigation-tier tools (`get_conversation`, `list_events`, `get_event`, `get_trace`) require a concrete `project`. Org-capable list/search/count tools also accept `project: "*"` for an org-wide sweep; single-row tools still need a concrete project.
+Pass the chosen project slug as `project` to `get_application_overview` and every later call. Use `list_projects` to discover projects or verify the selection when needed. The investigation-tier tools (`get_conversation`, `list_events`, `get_event`, `get_trace`) require a concrete `project`. Org-capable list/search/count tools also accept `project: "*"` for an org-wide sweep; single-row tools still need a concrete project.
 
 ### Step 2: Investigate — "What's actually happening?"
 
