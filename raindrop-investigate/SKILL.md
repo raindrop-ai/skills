@@ -52,6 +52,7 @@ If the org has more than one project, call `list_projects` first and pass the re
 - `get_signal` — signal profile: description, type, occurrence count, user count, and trend in one call.
 - `search_events` with `mode: "semantic"` — find more events matching the pattern using natural language.
 - `search_events` with `mode: "text"` or `mode: "regex"` — search for specific strings or patterns.
+  Keep text/regex searches to `period: "24h"` or narrower, or add a `user_id` / `convo_id` filter. Wider content scans can return `error: "search_timeout"` — narrow the window or add a filter; the same query will time out again if retried.
 
 ### Step 4: Act — "What should be fixed?"
 
