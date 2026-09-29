@@ -227,7 +227,7 @@ Create new code signals from MCP (requires the `MCP_SIGNAL` feature flag). OAuth
 | Tool | Purpose |
 |------|---------|
 | `raindrop_skills` | **Call first** with `topic: "signals"`. Loads the signal workflow. |
-| `raindrop_start_signal_session` | Start authoring. Returns `session_id` + `status: "authoring"`; reuse the same `project` + `session_id` throughout. |
+| `raindrop_start_signal_session` | Start authoring. Returns `session_id` + `status: "authoring"`; reuse the same `project` + `session_id` throughout. Pass `ui_active: false` (default `true`) when the user asks not to see the review UI — the app stays hidden and the agent drives the text fallback. |
 | `raindrop_get_signal_session` | Poll while authoring (long-polls ~20s) until `reviewing`, `ready`, or `failed`. |
 | `raindrop_get_signal_session_status` | Lightweight status check. |
 | `raindrop_get_signal_session_code` | Classifier source — only when the user explicitly asks. |

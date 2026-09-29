@@ -100,7 +100,7 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 Author new code signals from your MCP client. Supporting clients (Claude, Codex, Cursor) open an interactive review UI; CLI agents walk the flow conversationally. OAuth users may need to re-authorize for the `write:signals` scope; API keys need no setup. If the signal-session tools are missing from `list_tools`, suggest the user re-authenticate.
 
 1. `raindrop_skills` with `topic: "signals"` first — load the signal workflow.
-2. `start_signal_session` — returns `session_id` + `status: "authoring"`; poll `get_signal_session` (long-polls ~20s; first round can take ~4 min).
+2. `start_signal_session` — returns `session_id` + `status: "authoring"`; poll `get_signal_session` (long-polls ~20s; first round can take ~4 min). If the user asks not to see the review UI, pass `ui_active: false` so the app stays hidden and the flow runs conversationally.
 3. Review the draft: show every batch event with full I/O before labeling.
 4. `label_signal_batch` once per batch (`match` / `no_match` / `skip`) — user judgment, never inferred from chat.
 5. `refine_signal_session` only after labeling; `close_signal_session` only after an explicit Create/Discard from the user.
