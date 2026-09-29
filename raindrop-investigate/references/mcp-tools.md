@@ -208,7 +208,7 @@ Load `raindrop_skills` with `topic: "dashboards"` before authoring. Use `topic: 
 
 ### `raindrop_list_dashboards`
 
-List accessible dashboards, including the built-in Usage board. Omit `project` to list across projects, or pass a project to narrow the catalog. Pass `dashboard_id` or an exact `name` for a snapshot; `dashboard_id` wins. Catalog entries include IDs, titles, scope, links, and panel summaries, without query text. Private dashboards appear only to their owner.
+List accessible dashboards, including the built-in Usage board. Omit `project` to list across projects, or pass a project to narrow the catalog. Pass `dashboard_id` or an exact `name` for a snapshot; `dashboard_id` wins. Catalog entries include IDs, titles, scope, links, and panel summaries, without query text. Named snapshots apply the saved `filters` and return them with the board. Each query result reports `skippedDashboardFilters` for filter kinds its source cannot apply. Private dashboards appear only to their owner.
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -220,7 +220,7 @@ List accessible dashboards, including the built-in Usage board. Omit `project` t
 
 ### `raindrop_get_dashboard`
 
-Read a saved dashboard before editing. Returns `{data: ...}` containing `dashboard_id`, `project_id`, title, description, visibility, revision, `time_settings`, panels as `{id, panel}` in layout order, and a scoped URL. The built-in Usage board is available through `list_dashboards` and cannot be edited.
+Read a saved dashboard before editing. Returns `{data: ...}` containing `dashboard_id`, `project_id`, title, description, visibility, revision, `time_settings`, saved `filters`, panels as `{id, panel}` in layout order, and a scoped URL. The built-in Usage board is available through `list_dashboards` and cannot be edited.
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -231,7 +231,7 @@ Read a saved dashboard before editing. Returns `{data: ...}` containing `dashboa
 
 ### `raindrop_preview_dashboard_panel_query`
 
-Validate and execute one exact panel query with dashboard time-range semantics. Omit timestamp and end_timestamp filters from `WHERE` and `HAVING`; the dashboard supplies them. Match visualization fields to query output aliases. Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`.
+Validate and execute one exact panel query with dashboard time-range semantics. Preview does not apply dashboard-wide filters. Omit timestamp and end_timestamp filters from `WHERE` and `HAVING`; the dashboard supplies them. Match visualization fields to query output aliases. Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`.
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -270,9 +270,13 @@ Apply actions to an existing dashboard and save them atomically. Read `get_dashb
 | `summary` | string | Required short summary of the change. |
 | `actions` | array | Required ordered edit actions. |
 
-Supported actions are `add_panel`, `update_query_panel`, `update_text_panel`, `duplicate_panel`, `remove_panel`, `set_panel_size`, `tidy_layout`, `update_dashboard_details`, and `set_time_settings`. Target existing panels by their returned `panel_id`. For size changes use `compact`, `standard`, `wide`, or `full`; never supply grid coordinates.
+Supported actions are `add_panel`, `update_query_panel`, `update_text_panel`, `duplicate_panel`, `remove_panel`, `set_panel_size`, `tidy_layout`, `update_dashboard_details`, `set_filters`, and `set_time_settings`. Target existing panels by their returned `panel_id`. For size changes use `compact`, `standard`, `wide`, or `full`; never supply grid coordinates.
 
-On a revision conflict, reload and rebuild the actions. Do not just change `expected_revision`. Validation failures save nothing. The result contains `success`, `ui_type: "dashboard_edit_proposal"`, `dashboard_id`, `project_id`, summary, revision, `affected_panel_ids`, and URL. Despite that response label, the edit is already saved.
+Use `set_filters` for whole-dashboard defaults. Its `filters` array replaces the complete saved list, so preserve filters the user did not ask to remove; `[]` clears all filters. For example, `{"action":"set_filters","filters":[{"kind":"userId","values":["example-user"]}]}` scopes supported panels to that user without changing their queries. Defaults persist for everyone opening the dashboard. Combine filters and panels in the same edit, or use only `set_filters` for a filter-only request; no query preview is needed when queries stay unchanged. For a new dashboard, create it first, then set filters using the returned revision. Filter kinds include properties, user traits, feature flags, signals, event names, conversation IDs, user IDs, models, tool names/counts, error counts, and error status. Discover uncertain keys and values before saving.
+
+Line and bar visualizations accept `seriesColors`, a map of legend labels to six-digit hex values. Only set it when the user names colors; otherwise use `palette`. Labels use readable field names without a group, the group alone with one numeric field, and `<group> · <field>` with several. Overlay groups start with the query name or ref and append the series-field value when present. Matching ignores case and treats underscores as spaces.
+
+On a revision conflict, reload and rebuild the actions. Do not just change `expected_revision`. Validation failures save nothing. The result contains `success`, `ui_type: "dashboard_edit_proposal"`, `dashboard_id`, `project_id`, summary, revision, `affected_panel_ids`, and URL. When actions include `set_filters`, the result also returns the saved `filters`, including `[]` when cleared. Otherwise it omits that field. Despite that response label, the edit is already saved.
 
 ---
 

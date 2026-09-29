@@ -117,6 +117,10 @@ For a new dashboard, preview every exact panel query with `preview_dashboard_pan
 
 Load the `rql` guide for query syntax. Saved queries receive their time range from the dashboard; omit timestamp and end_timestamp filters from `WHERE` and `HAVING`. Preview uses an explicit `time_range: {from, to}` of at most seven days. Raw-text filters require at most 24 hours and a selective predicate. If the saved range is longer, preview a bounded subset and disclose it. Preview rows do not establish the full dashboard's values. Configure visualization fields with the exact query output aliases.
 
+For whole-dashboard filtering, use `edit_dashboard` with a `set_filters` action. Read the saved `filters` first, preserve filters the user did not ask to remove, and pass the complete replacement list; `[]` clears all filters. These defaults persist for everyone opening the dashboard. Combine filter and panel changes in one edit; filter-only edits need no query preview. To filter specific panels, edit only their queries. Preview does not apply dashboard-wide filters. Named snapshots apply saved filters; check `skippedDashboardFilters` per query before calling their results fully filtered.
+
+Line and bar visualizations support `seriesColors` keyed by legend label. Use overrides only when the user names colors; otherwise choose a palette. Preserve query text for presentation-only changes.
+
 Return the saved dashboard link and summarize the change. Creation is not idempotent: after an uncertain response, check `list_dashboards` before retrying. Do not claim a save succeeded unless the tool confirms it. See [the dashboard tool reference](references/mcp-tools.md#dashboards) for inputs.
 
 **Tool rename:** The old overview tool `get_dashboard` is now `get_application_overview`, with the same overview inputs and output. `get_dashboard` now reads a saved dashboard and requires a dashboard ID or name and a project. Refresh cached tool inventories and migrate old overview calls.
