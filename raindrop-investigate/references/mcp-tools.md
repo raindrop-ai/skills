@@ -367,3 +367,23 @@ Submit feedback to the Raindrop team. Posts directly to their internal channel.
 |-----------|------|-------------|
 | `feedback` | string | Description of the issue, what didn't work, or what was unclear |
 | `category` | `"bug"` \| `"docs"` \| `"unclear"` \| `"feature_request"` \| `"other"` | Feedback category |
+
+## Datasets
+
+### `list_datasets`
+
+List datasets in a project, including stable `slug`, `id`, and `row_count`.
+Pass `dataset_id` to inspect rows, optional reference answers, saved event/trace
+references, and annotations. IDs and slugs refer to the same resources created
+in the UI or SDK.
+
+- `dataset_id`: optional non-empty string; accepts a dataset UUID or slug.
+- `artifact_kind`: optional `trace`, `event`, or `custom` filter.
+- `limit`: number from 1 to 100, default 50.
+- `cursor`: optional pagination cursor from the previous response.
+- `org`: optional organization reference from `list_organizations`.
+- `project`: optional project ID from `list_projects`.
+
+The tool is read-only, non-destructive, idempotent, and open-world. Use `get_event`
+or `get_trace` to inspect an individual saved artifact. For application evals,
+see [the local eval skill](../../raindrop-evals/SKILL.md).
