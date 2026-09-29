@@ -12,6 +12,7 @@ Read [the local workflow](references/local-workflow.md) for tested SDK calls.
 Identify the application's entry point, tracing integration, package manager,
 and Raindrop project. Use the existing environment for credentials. The Query
 API key and application tracing must target the same organization and project.
+Confirm the Raindrop MCP connection exposes the eval tools for that project.
 
 Use MCP `raindrop_skills({ topic: "evals" })` for the current evaluator authoring
 contract. `list_datasets({ project })` returns IDs, slugs, and row counts;

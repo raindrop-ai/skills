@@ -34,6 +34,8 @@ try {
 
 Existing UI datasets retain their IDs. Run-time snapshots preserve earlier data
 when the user later edits the dataset. Don't copy it into a new dataset per eval.
+Dataset versions currently support up to 1,000 rows and publication requests up to
+4 MiB. Check size before setup; never silently truncate an existing dataset.
 
 To upload new reference-answer rows:
 
