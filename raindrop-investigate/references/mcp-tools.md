@@ -5,6 +5,7 @@
 - [Projects](#projects)
 - [RQL](#rql)
 - [Events](#events)
+- [Costs](#costs)
 - [Conversations](#conversations)
 - [Users](#users)
 - [Dashboards](#dashboards)
@@ -19,6 +20,8 @@
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
 **Time ranges:** Most time-scoped read tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`). `raindrop_run_rql` accepts `time_range: {from, to}` for event and trace queries, with a maximum seven-day window and a default of the latest seven days. SQL predicates can narrow this window but cannot widen or move it. Keep raw-text searches within 24 hours with a selective predicate. User and conversation rollups represent lifetime or whole-conversation totals.
+
+`query_cost` requires explicit `from` and `to` ISO timestamps, with a maximum window of 31 days (7 days for hourly trends).
 
 Dashboard previews require an explicit `time_range: {from, to}` with ISO timestamps spanning at most seven days. Saved dashboards use their own time settings.
 
@@ -147,6 +150,50 @@ Top values for a field across events with counts. Use to understand distribution
 | `signal_id` | string | Filter by signal |
 | `period` | string | How far back to look (default: `"24h"`) |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
+
+---
+
+## Costs
+
+### `raindrop_query_cost` (`query_cost` on the server)
+
+Analyze project-scoped LLM spend and token usage, using provider/gateway-reported costs plus catalog-priced usage.
+
+| Operation | Result |
+|-----------|--------|
+| `summary` | Total spend, tokens, and pricing coverage for the window |
+| `breakdown` | Cost by `model` or `provider`, ranked by total cost descending |
+| `timeseries` | Chronological `hour` or `day` trend |
+| `events` | Recent associated events with spend, newest first; paginate with `next_cursor` until null |
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | `"summary"` \| `"breakdown"` \| `"timeseries"` \| `"events"` | Required |
+| `from` | ISO datetime | Required; inclusive start |
+| `to` | ISO datetime | Required; exclusive end, after `from`, at most 31 days later |
+| `filters` | object | Optional exact `model` and/or `provider` string arrays (max 50 values per array, 500 characters per value); unsupported for timeseries |
+| `group_by` | `"model"` \| `"provider"` | Required for breakdown |
+| `interval` | `"hour"` \| `"day"` | Required for timeseries; hourly windows are limited to 7 days |
+| `limit` | int (1–100) | Default 20; max 50 for breakdown and 100 for events |
+| `cursor` | string | Event pagination cursor from `next_cursor`; keep the project, window, and filters unchanged |
+| `org` | string | Optional organization selector; must be authorized |
+| `project` | string | Project slug; omit for the default project. `*` is unsupported |
+
+Results include `cost_basis: "reported_plus_catalog"`, a cost note, and `quality` with pricing coverage and caveats. Check `unpriced_model_calls` and `pricing_coverage_ratio` before quoting a total: missing usage or catalog coverage makes `total_cost_usd` incomplete, and an entirely unpriced total is null. Cache usage ratios are only meaningful when cache reporting is complete. Event results omit calls not associated with an event; summary quality reports those calls.
+
+Cost attribution by user, conversation, or function is unsupported. Use `get_event` or `get_trace` after selecting a cost event to investigate it. Events are ordered by recency, not spend.
+
+Example:
+
+```json
+{
+  "operation": "breakdown",
+  "group_by": "model",
+  "from": "2026-07-01T00:00:00.000Z",
+  "to": "2026-07-08T00:00:00.000Z",
+  "project": "default"
+}
+```
 
 ---
 

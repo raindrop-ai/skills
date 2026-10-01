@@ -49,6 +49,7 @@ Pass the chosen project slug as `project` to `get_application_overview` and ever
 - `get_event_timeseries` — see the trend. Is this getting worse? When did it start? Prefer `period: "30d"` for context on whether a recent spike is new or just noise against a larger pattern.
 - `get_event_facets` — top values by field. `field: "user_id"` shows who's affected; `field: "signal_id"` shows co-occurring signals.
 - `get_event_count` — quantify impact (e.g., "how many events matched this signal in the last 24h?").
+- `query_cost` — analyze LLM spend and tokens for one project with explicit `from`/`to` timestamps (up to 31 days). Choose `summary`, `breakdown` by model/provider, `timeseries` by hour/day (hourly up to 7 days), or paginated recent `events`. Check pricing coverage before quoting totals: unpriced calls make spend incomplete. User, conversation, function, and all-projects cost attribution is unsupported.
 - `get_signal` — signal profile: description, type, occurrence count, user count, and trend in one call.
 - `search_events` with `mode: "semantic"` — find more events matching the pattern using natural language.
 - `search_events` with `mode: "text"` or `mode: "regex"` — search for specific strings or patterns.
