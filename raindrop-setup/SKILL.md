@@ -34,6 +34,7 @@ Copy this checklist into your response and check off each item as you complete i
 - [ ] Phase 3: Set up RAINDROP_WRITE_KEY in env file(s)
 - [ ] Phase 3: Install the Raindrop dependency
 - [ ] Phase 3: Instrument AI call sites per the approved plan
+- [ ] Phase 3: Enable SDK debug logging for setup and verification
 - [ ] Phase 3: Verify the build; apply fixes if needed (max 2 attempts)
 - [ ] Phase 3: Summarize changes to the user
 - [ ] Phase 4: Confirm write key, Slack, and account next steps
@@ -90,6 +91,12 @@ Scan the project's imports and dependency manifests for a framework Raindrop int
 | `import ... from '@google/genai'` | `references/vertex-ai-typescript.md` |
 | `AzureOpenAI` imported from `openai` (TS) | `references/azure-openai-typescript.md` |
 | `import ... from '@temporalio/worker'` | `references/temporal.md` |
+| `import ... from '@tanstack/ai'` | docs: https://raindrop.ai/docs/integrations/tanstack-ai |
+| `import ... from '@cursor/sdk'` | docs: https://raindrop.ai/docs/integrations/cursor-agent-sdk |
+| `openai` **and** `client.beta.agents.sessions` (OpenAI managed agents runtime). Plain `chat.completions` / `responses` does **not** count — for that, use `references/typescript.md`. | docs: https://raindrop.ai/docs/integrations/openai-managed-agents |
+| `import ... from '@openrouter/agent'` | docs: https://raindrop.ai/docs/integrations/openrouter-agent |
+| Vercel Eve agent project (an `agent/` directory with Eve's `instrumentation.ts` entry point) | docs: https://raindrop.ai/docs/integrations/eve |
+| `import ... from '@earendil-works/pi-agent-core'` / `'@earendil-works/pi-ai'` | docs: https://raindrop.ai/docs/integrations/pi-agent |
 
 **Python**
 
@@ -107,6 +114,8 @@ Scan the project's imports and dependency manifests for a framework Raindrop int
 | `from google import genai` | `references/vertex-ai-python.md` |
 | `boto3.client("bedrock-runtime", ...)` | `references/bedrock-python.md` |
 | `AzureOpenAI` imported from `openai` (Python) | `references/azure-openai-python.md` |
+
+**Developer tools (not app code).** If the user wants to observe a coding agent itself — Claude Code, Cursor, or OpenCode sessions — rather than an application, there is nothing to instrument in their repo. Point them to the plugin docs instead: https://raindrop.ai/docs/integrations/claude-code, https://raindrop.ai/docs/integrations/cursor, https://raindrop.ai/docs/integrations/opencode.
 
 If multiple integrations could match (e.g. LangChain wrapping a Vercel AI SDK call), or it is ambiguous which framework is used for the feature being instrumented, ask the user.
 
@@ -129,7 +138,7 @@ If no SDK supports the target runtime, use the HTTP API directly: `references/ht
 
 ### Loading the reference
 
-Read **only** the single reference file you selected above. Follow it precisely for API usage, initialization patterns, and configuration.
+Read **only** the single reference file you selected above. Follow it precisely for API usage, initialization patterns, and configuration. If the row points to a docs URL instead of a reference file, fetch that page and treat it as the reference. If a reference file and the installed package's README disagree, the installed README wins — integration packages move faster than this skill.
 
 Integration reference files cover the wrap-and-go path. If your plan needs APIs not shown there — `trackSignal` for feedback, attachments, manual `withSpan` for nested work, PII redaction, self-diagnostics — also load the matching base-SDK reference (`references/typescript.md` or `references/python.md`) for those APIs. Keep instrumentation in the integration; reach into the base SDK only for the auxiliary calls.
 
@@ -163,6 +172,7 @@ Attempt to include **all** of the following in your plan. If using an integratio
 - **Core tracking** — `begin()` → `finish()` on AI calls (required)
 - **User identification** (`setUserDetails`) — if the app has user accounts or session data
 - **Conversation threading** (`convoId`) — if the AI feature has multi-turn conversations
+- **Real IDs, never placeholders.** `userId` is required on every event and the SDKs **silently skip** events without one. Wire `userId` (and `convoId` where there is a thread) to the app's real values — the authenticated user, session, or request identity. The `"user_123"` / `"convo_456"` values in the reference files are placeholders, not defaults; never ship them, and never invent an `"anonymous"` or `"unknown"` id to make the call compile. If the app has no identity you can reach from the call site, stop and ask the user what to use.
 - **Feedback tracking** (`trackSignal`) — if there's a thumbs-up/down UI or feedback form
 - **Attachments** — if the AI interaction involves code, images, or documents worth capturing
 - **Tracing** (`withSpan` / `withTool`) — if the AI pipeline has multiple steps (tool calls, retrieval, chained prompts)
@@ -210,6 +220,8 @@ Once the user approves:
 
 3. **Modify files** per the approved plan. Keep changes tightly scoped to the AI interaction path.
 
+   Turn on the SDK's debug logging while you set up and verify (`debugLogs: true` on the TypeScript SDK, the `debug` option on integrations such as `events: { debug: true }` / `traces: { debug: true }`, `raindrop.set_debug_logs(True)` in Python — the reference file names the exact option). Without it, an event skipped for a missing `userId` or a failed send produces no output at all. Tell the user it is on and to turn it off once events are confirmed.
+
 4. **Verify the build.** Run the project's build process and type checks. If the build was already broken before your changes, stop and tell the user — don't conflate pre-existing failures with integration issues. For integration-related build failures, attempt up to 2 localized fixes. If it still fails, explain the issue and let the user decide how to proceed.
 
 5. **Summarize** what was changed: which SDK, which files, which AI feature.
@@ -237,9 +249,11 @@ A working integration that silently doesn't ship events looks identical to a wor
 
 1. **Event arrives.** After one AI interaction, an event with the matching `event` name appears in app.raindrop.ai within seconds.
 2. **Input and output populated.** Not empty, not placeholder strings, not the wrong field.
-3. **User and conversation IDs.** Attributed to the right user, grouped under the right conversation.
+3. **User and conversation IDs.** Attributed to the right user, grouped under the right conversation. The `user_id` must be the app's real identifier, not a placeholder from the reference snippet. If no event shows up at all, a missing `userId` is the first thing to check — the SDKs skip those events and only report it in debug logs.
 4. **Tool spans (if applicable).** Each tool call appears as a nested span with input, output, and duration.
 5. **Properties.** Cost, latency, model, etc. visible on the event.
+
+If the Raindrop MCP server is connected, do these checks yourself with `list_events` / `search_events` instead of asking the user to look — and report what you found, including anything missing.
 
 ### Optional enhancements
 
