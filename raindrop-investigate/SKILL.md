@@ -43,6 +43,7 @@ Pass the chosen project slug as `project` to `get_application_overview` and ever
 - `get_conversation` — **wide tier:** metadata plus slim truncated turns. Paginate with `page_info.next_cursor`.
 - `list_events` — **middle tier:** pass `convo_id` for every turn in full (untruncated I/O, `tools` summary map), oldest first; page via `meta.cursor`. `include_system_prompt` adds a truncated snapshot.
 - `get_trace` — **forensics tier:** full OTEL spans. `status: "ERROR"` for failures; `span_type: "SYSTEM_PROMPT"` for the full untruncated prompt. Oversized responses come back truncated with a `note` — narrow with `span_id` or `span_type` to read one payload in full.
+- `get_replay_trace` — **replay forensics:** recorded spans for one agent-simulation replay. Use a replay ID from `replay_event`, `run_replay_suite`, or a `get_simulation_review` candidate; `get_trace` does not include replay recordings. Page with `meta.cursor`, keeping the same filters. `data.spans` is null while the replay is running or when no recording was kept.
 
 ### Step 3: Understand — "Why is this happening? How widespread?"
 

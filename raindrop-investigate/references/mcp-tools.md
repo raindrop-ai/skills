@@ -13,6 +13,7 @@
 - [Signal authoring (MCP_SIGNAL)](#signal-authoring-mcp_signal)
 - [Existing signal refinement](#existing-signal-refinement)
 - [Traces](#traces)
+- [Agent simulation replays](#agent-simulation-replays)
 - [Issues](#issues)
 - [Stumbles](#stumbles)
 - [Docs & Feedback](#docs--feedback)
@@ -459,6 +460,23 @@ with `cursor` to inspect the trace. To re-read a truncated payload, use its `spa
 | `status` | `"UNSET"` \| `"OK"` \| `"ERROR"` | Filter by span status — use `"ERROR"` to find failures |
 | `limit` | int (1–200) | Max spans to return (default: 50) |
 | `project` | string | **Required.** Project slug from `raindrop_list_projects` |
+
+---
+
+## Agent simulation replays
+
+### `raindrop_get_replay_trace`
+Recorded spans for ONE event replay (from `replay_event`, `run_replay_suite`, or `get_simulation_review` candidate replay IDs): the replayed agent's model generations, prompts, and tool calls. `get_trace` does not see replays. Narrow with `span_type` (`LLM_GENERATION`, `TOOL_CALL`) or `status` `ERROR`; page with `meta.cursor` until `meta.has_more` is false, keeping the same filters. If a payload is truncated, re-read that `span_id`. `data.spans` is null while the replay is still running or when no recording was kept; call `get_replay_progress` until it finishes.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `replay_id` | UUID string | Required replay ID |
+| `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` | Filter to a span type |
+| `status` | `"UNSET"` \| `"OK"` \| `"ERROR"` | Filter by span status |
+| `span_id` | string | Filter to one span |
+| `limit` | int (1–200) | Max spans to return (default: 50) |
+| `cursor` | string | Pagination cursor; reuse the same filters on each page |
+| `org` | string | Organization reference from `raindrop_list_organizations`; omit for the default organization |
 
 ---
 
