@@ -128,7 +128,7 @@ Keep the callback in code and pass its object in a normal suite definition:
 ```js
 const matchesReference = defineLocalEvaluator({
   slug: "exact-answer", name: "Exact answer", output: "boolean",
-  judge: ({ result, row }) => ({ pass: result === row.output }),
+  judge: ({ trace, expectedOutput }) => ({ pass: trace.event.aiData.output === expectedOutput }),
 });
 const suite = defineEvalSuite({
   name: "Exact answers", dataset: selectedDatasetIdOrSlug, agent,
@@ -148,3 +148,8 @@ The receipt links each evaluator's saved run. MCP `get_eval_run` or SDK
 evaluator runs. Record dataset/program versions, total graded rows, failures, and
 execution errors. Give the user the saved command so rerunning does not depend on
 chat history.
+
+## Evaluator contract
+
+See [Evaluator contract](evaluator-contract.md) for the per-trace context, metadata,
+verdicts, judge helper, runtime limits, and legacy local compatibility.

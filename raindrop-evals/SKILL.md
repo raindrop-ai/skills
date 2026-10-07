@@ -31,7 +31,7 @@ fabricate traces from plain answers.
 
 Use deterministic code for objective checks and a judge for semantic criteria.
 Choose boolean, score (1–5), or number output. Load the current MCP authoring
-instructions before writing program source; programs emit with `ctx.grade`.
+instructions before writing program source; programs return one verdict per trace. Read [the evaluator contract](references/evaluator-contract.md) for context fields, judge calls, and compatibility.
 
 Create a labeled calibration dataset from real captured examples, including good
 and bad outputs. MCP `publish_eval_dataset` accepts source event IDs; poll
