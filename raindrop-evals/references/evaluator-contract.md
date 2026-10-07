@@ -31,10 +31,14 @@ output type is independent of the final verdict. Each evaluator checks one crite
 additional clipping; upstream truncation markers remain visible.
 
 Hosted invocations run in separate workers (20 at a time), with a 60-second
-per-trace deadline. Provider calls queue at concurrency 20 and have a 30-second
-deadline including up to two retries. There is no separate judge-call-count cap.
+per-trace wall-clock deadline shared by all judge calls, queueing, and evaluator code.
+Multiple sequential calls must fit within that total budget. Provider calls queue at concurrency 20 and have a 30-second
+deadline including up to two retries. Hosted runs allow at most 16 judge calls per
+trace, 1,000 calls per run, and 64 MiB of serialized judge-request data per run.
+Exceeding a budget fails the run before any over-budget request reaches the provider.
 Portable runtimes default to four concurrent provider callbacks, 30 seconds per
-callback and 60 seconds for a judge program; limits are configurable. Portable
+callback and 60 seconds for a judge program; limits are configurable. The program
+deadline includes queueing and caps the time available to each callback. Portable
 sandbox resource failures reject execution; the calling runner must handle them.
 
 Local evaluators use the customer's model libraries; hosted `run_judge` is not
