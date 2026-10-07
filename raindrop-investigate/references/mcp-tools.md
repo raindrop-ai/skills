@@ -9,6 +9,7 @@
 - [Conversations](#conversations)
 - [Users](#users)
 - [Dashboards](#dashboards)
+- [Datasets](#datasets)
 - [Signals](#signals)
 - [Signal authoring (MCP_SIGNAL)](#signal-authoring-mcp_signal)
 - [Existing signal refinement](#existing-signal-refinement)
@@ -324,6 +325,61 @@ Use `set_filters` for whole-dashboard defaults. Its `filters` array replaces the
 Line and bar visualizations accept `seriesColors`, a map of legend labels to six-digit hex values. Only set it when the user names colors; otherwise use `palette`. Labels use readable field names without a group, the group alone with one numeric field, and `<group> · <field>` with several. Overlay groups start with the query name or ref and append the series-field value when present. Matching ignores case and treats underscores as spaces.
 
 On a revision conflict, reload and rebuild the actions. Do not just change `expected_revision`. Validation failures save nothing. The result contains `success`, `ui_type: "dashboard_edit_proposal"`, `dashboard_id`, `project_id`, summary, revision, `affected_panel_ids`, and URL. When actions include `set_filters`, the result also returns the saved `filters`, including `[]` when cleared. Otherwise it omits that field. Despite that response label, the edit is already saved.
+
+---
+
+## Datasets
+
+Datasets are shared collections of saved events, traces, and their labels. All tools accept optional `org` and `project`. Write tools need `write:datasets` on OAuth tokens; API keys need no extra scope.
+
+### `raindrop_list_datasets`
+
+List datasets with their IDs, slugs, and row counts. Pass `dataset_id` to inspect one dataset's rows, reference answers, saved event and trace references, and annotations. Use `get_event` or `get_trace` to inspect an individual artifact.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dataset_id` | string | Optional dataset ID or slug to inspect |
+| `artifact_kind` | string | Optional filter when inspecting: `event`, `trace`, or `custom` |
+| `limit` | number | Max members to return, 1–100 (default 50) |
+| `cursor` | string | Pagination cursor from a previous response |
+
+### `raindrop_create_dataset`
+
+Create a shared dataset. Not idempotent: after an uncertain response, check `list_datasets` before retrying.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `name` | string | Required dataset name, 1–100 characters |
+| `description` | string | Optional description, up to 500 characters |
+
+### `raindrop_update_dataset`
+
+Rename a dataset or change its description. Omit a field to keep its current value; pass `description: null` to clear it. Pass at least one of `name` or `description`. Returns `{data: ...}` with the updated dataset.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dataset_id` | string | Required dataset UUID |
+| `name` | string | Optional new name, 1–100 characters |
+| `description` | string or null | Optional new description, up to 500 characters; `null` clears it |
+
+### `raindrop_update_dataset_members`
+
+Add or remove events and whole traces in bulk. Additions snapshot the current artifact into the dataset. Duplicate adds and missing removes are safe no-ops.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dataset_id` | string | Required dataset UUID |
+| `operation` | string | Required: `add` or `remove` |
+| `items` | array | Required, 1–25 items: `{artifact_kind: "event", event_id}` or `{artifact_kind: "trace", trace_id}` |
+
+### `raindrop_annotate_items`
+
+Set the label shown on saved events, traces, or custom rows. Calling it again replaces the item's current label.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dataset_id` | string | Required dataset UUID |
+| `annotations` | array | Required, 1–100 entries of `{target, value}`. `target` is `{target_kind: "event", event_id}`, `{target_kind: "trace", trace_id}`, or `{target_kind: "custom", row_id}`. `value` is `{label, color}` with a 1–100 character label and color `green`, `red`, `blue`, `orange`, `purple`, or `gray` |
 
 ---
 
