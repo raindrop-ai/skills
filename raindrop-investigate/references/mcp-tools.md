@@ -3,9 +3,12 @@
 ## Contents
 
 - [Projects](#projects)
+- [RQL](#rql)
 - [Events](#events)
+- [Costs](#costs)
 - [Conversations](#conversations)
 - [Users](#users)
+- [Dashboards](#dashboards)
 - [Signals](#signals)
 - [Signal authoring (MCP_SIGNAL)](#signal-authoring-mcp_signal)
 - [Existing signal refinement](#existing-signal-refinement)
@@ -16,13 +19,42 @@
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
 
-**Time ranges:** All tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`) rather than explicit start/end timestamps. Max lookback is 90 days.
+**Time ranges:** Most time-scoped read tools use a `period` string parameter (e.g. `"1h"`, `"24h"`, `"7d"`, `"30d"`). `raindrop_run_rql` accepts `time_range: {from, to}` for event and trace queries, with a maximum seven-day window and a default of the latest seven days. SQL predicates can narrow this window but cannot widen or move it. Keep raw-text searches within 24 hours with a selective predicate. User and conversation rollups represent lifetime or whole-conversation totals.
 
-**Pagination:** All list tools use `cursor` (not `offset`) for pagination. The cursor is returned in each response.
+`query_cost` requires explicit `from` and `to` ISO timestamps, with a maximum window of 31 days (7 days for hourly trends).
 
-**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — call `raindrop_list_projects` first; if the org has more than one project, ask the user which slug to use. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
+Dashboard previews require an explicit `time_range: {from, to}` with ISO timestamps spanning at most seven days. Saved dashboards use their own time settings.
+
+**Pagination:** List tools use `cursor` (not `offset`) for pagination. `raindrop_run_rql` uses `LIMIT` and has no cursor.
+
+**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed; ask the user if several projects could apply. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
 
 **All-projects reads:** Pass `*` as `project` on the org-capable read tools — `raindrop_list_events`, `raindrop_search_events`, `raindrop_get_event_count`, `raindrop_get_event_timeseries`, `raindrop_get_event_facets`, `raindrop_list_conversations`, and `raindrop_list_users` — to read across all active projects; rows carry a `project_id`. Single-row lookups (`raindrop_get_event`, `raindrop_get_conversation`, `raindrop_get_trace`, signals, issues, stumbles, dashboard) still require a concrete project (not `*`).
+
+---
+
+## RQL
+
+### `raindrop_skills`
+Load the guide for the task: `rql` for counts, breakdowns, trends, and comparisons; `rql_reference` for the full RQL schema and functions; `explore` for individual records and semantic search; `dashboards` for creating and editing saved dashboards; `signals` for signal authoring; `evals` for eval workflows; and `triage` for explicit delegation to Raindrop Triage. Analytical questions can start with `rql` directly.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `topic` | string | Optional guide name; omit to list available guides |
+
+### `raindrop_run_rql`
+Run one read-only RQL `SELECT` over `events`, `traces`, `users`, or `conversations` in one concrete project. Use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed. Use RQL for counts, breakdowns, trends, and comparisons. Load `raindrop_skills` with `topic: "rql"` directly for common event fields and checked examples; loading `explore` first is unnecessary. Use `topic: "rql_reference"` for the full table and function reference and additional examples. Keep semantic search, efficient dedicated rollups, signal tools, and event or trace detail tools for questions they answer better. Give computed expressions aliases that do not reuse source column names.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `org` | string | Optional organization selection |
+| `project` | string | **Required.** One concrete project slug; `*` is not supported |
+| `query` | string | Required RQL `SELECT`, 1–20,000 characters |
+| `time_range` | object | Optional `{from, to}` ISO timestamps (inclusive start, exclusive end), at most seven days; defaults to the latest seven days for events and traces |
+
+Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`. MCP enforces a maximum seven-day window for events and traces. Pass `time_range: {from, to}` for historical or narrower windows; omission selects the latest seven days. Choose 24 hours when the user gives no timeframe. SQL predicates can narrow that window but cannot widen or move it. Query successive windows for longer investigations and reuse the same explicit window while paging. The window does not apply to lifetime user or conversation rollups. Keep raw-text and serialized-payload searches within 24 hours with a selective predicate. MCP uses the same RQL compiler as Triage. A `LIMIT` caps returned rows, not scan cost. The default is 100 rows; the explicit maximum is 1,000.
+
+Results include `columns`, `data`, `rowCount`, limit and truncation flags, `statistics`, the enforced `timeRange` for events and traces, default-window information, and supported `reference_targets`. `rowCount` counts returned rows before clipping, not all matching events. Report the time range and any clipping. Errors carry a message and source span for query correction; narrow a timed-out query before retrying. Content is redacted. Organizations with zero data retention enabled or unverified cannot run this tool.
 
 ---
 
@@ -121,6 +153,50 @@ Top values for a field across events with counts. Use to understand distribution
 
 ---
 
+## Costs
+
+### `raindrop_query_cost` (`query_cost` on the server)
+
+Analyze project-scoped LLM spend and token usage, using provider/gateway-reported costs plus catalog-priced usage.
+
+| Operation | Result |
+|-----------|--------|
+| `summary` | Total spend, tokens, and pricing coverage for the window |
+| `breakdown` | Cost by `model` or `provider`, ranked by total cost descending |
+| `timeseries` | Chronological `hour` or `day` trend |
+| `events` | Recent associated events with spend, newest first; paginate with `next_cursor` until null |
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `operation` | `"summary"` \| `"breakdown"` \| `"timeseries"` \| `"events"` | Required |
+| `from` | ISO datetime | Required; inclusive start |
+| `to` | ISO datetime | Required; exclusive end, after `from`, at most 31 days later |
+| `filters` | object | Optional exact `model` and/or `provider` string arrays (max 50 values per array, 500 characters per value); unsupported for timeseries |
+| `group_by` | `"model"` \| `"provider"` | Required for breakdown |
+| `interval` | `"hour"` \| `"day"` | Required for timeseries; hourly windows are limited to 7 days |
+| `limit` | int (1–100) | Default 20; max 50 for breakdown and 100 for events |
+| `cursor` | string | Event pagination cursor from `next_cursor`; keep the project, window, and filters unchanged |
+| `org` | string | Optional organization selector; must be authorized |
+| `project` | string | Project slug; omit for the default project. `*` is unsupported |
+
+Results include `cost_basis: "reported_plus_catalog"`, a cost note, and `quality` with pricing coverage and caveats. Check `unpriced_model_calls` and `pricing_coverage_ratio` before quoting a total: missing usage or catalog coverage makes `total_cost_usd` incomplete, and an entirely unpriced total is null. Cache usage ratios are only meaningful when cache reporting is complete. Event results omit calls not associated with an event; summary quality reports those calls.
+
+Cost attribution by user, conversation, or function is unsupported. Use `get_event` or `get_trace` after selecting a cost event to investigate it. Events are ordered by recency, not spend.
+
+Example:
+
+```json
+{
+  "operation": "breakdown",
+  "group_by": "model",
+  "from": "2026-07-01T00:00:00.000Z",
+  "to": "2026-07-08T00:00:00.000Z",
+  "project": "default"
+}
+```
+
+---
+
 ## Conversations
 
 **Three-tier read model:** `raindrop_get_conversation` (wide, truncated turns) → `raindrop_list_events` with `convo_id` (middle, full I/O) → `raindrop_get_event` / `raindrop_get_trace` (single-turn enrichment / forensics). All three require `project`.
@@ -173,10 +249,88 @@ Single user with traits, first/last seen timestamps, and event count.
 
 ---
 
-## Signals
+## Dashboards
+
+Load `raindrop_skills` with `topic: "dashboards"` before authoring. Use `topic: "rql"` or `"rql_reference"` for query syntax. All tools accept optional `org` to select an accessible organization. Direct writes require an OAuth user and `write:dashboards`; API keys can read organization-shared dashboards but cannot create or edit them. Both write tools save immediately. Refresh cached tool inventories after the overview rename.
+
+### `raindrop_list_dashboards`
+
+List accessible dashboards, including the built-in Usage board. Omit `project` to list across projects, or pass a project to narrow the catalog. Pass `dashboard_id` or an exact `name` for a snapshot; `dashboard_id` wins. Catalog entries include IDs, titles, scope, links, and panel summaries, without query text. Named snapshots apply the saved `filters` and return them with the board. Each query result reports `skippedDashboardFilters` for filter kinds its source cannot apply. Private dashboards appear only to their owner.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Optional project selection. Omit to list across projects. |
+| `dashboard_id` | string | Optional saved dashboard UUID or `default-usage`. |
+| `name` | string | Optional case-insensitive exact title. |
+| `period` | string | Optional snapshot range: `1h`, `6h`, `24h`, `3D`, `7D`, or `30D`. Defaults to the saved range. |
 
 ### `raindrop_get_dashboard`
-Snapshot of your application: event/user/conversation counts with period-over-period trends, recent AI-discovered issues, and top active signals. Start every investigation here.
+
+Read a saved dashboard before editing. Returns `{data: ...}` containing `dashboard_id`, `project_id`, title, description, visibility, revision, `time_settings`, saved `filters`, panels as `{id, panel}` in layout order, and a scoped URL. The built-in Usage board is available through `list_dashboards` and cannot be edited.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete project; `*` is unsupported. |
+| `dashboard_id` | string | Saved dashboard UUID. Supply this or `name`; ID wins when both are set. |
+| `name` | string | Case-insensitive exact title. Ambiguous titles require selection by ID. |
+
+### `raindrop_preview_dashboard_panel_query`
+
+Validate and execute one exact panel query with dashboard time-range semantics. Preview does not apply dashboard-wide filters. Omit timestamp and end_timestamp filters from `WHERE` and `HAVING`; the dashboard supplies them. Match visualization fields to query output aliases. Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete project owning the dashboard. |
+| `query` | string | Required final RQL query, 1–20,000 characters. |
+| `time_range` | object | Required `{from, to}` ISO timestamps, positive duration of at most seven days. |
+
+Raw-text filters require at most 24 hours and a selective predicate. For longer saved ranges, preview a bounded subset and disclose it. Results include bounded rows, columns, query statistics, and preview metadata. They validate the query and do not establish the full dashboard's values or cost. Retention restrictions, redaction, query capacity controls, timeouts, and result limits apply. Narrow or simplify a timed-out query before retrying.
+
+### `raindrop_create_dashboard`
+
+Save a new organization-shared dashboard. The server assigns panel IDs and layout. Creation is not idempotent: after an uncertain response, check the catalog before retrying.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete owning project. |
+| `title` | string | Required dashboard title. |
+| `description` | string or null | Optional description. |
+| `time_settings` | object | Optional dashboard range and refresh settings; defaults to the last seven days with refresh off. |
+| `panels` | array | Required complete panels in display order. Query panels include `kind: "query"`, title, query, and visualization; text panels include `kind: "text"`, title, and body. |
+
+Preview each exact query before saving. The result contains `success`, `ui_type: "dashboard_created"`, `dashboard_id`, `project_id`, title, revision, `panel_ids`, and URL.
+
+### `raindrop_edit_dashboard`
+
+Apply actions to an existing dashboard and save them atomically. Read `get_dashboard` first. Query updates include the complete query and visualization together; preview every new or changed query.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete owning project. |
+| `dashboard_id` | string | Required saved dashboard UUID. |
+| `expected_revision` | integer | Required revision from the latest definition read. |
+| `summary` | string | Required short summary of the change. |
+| `actions` | array | Required ordered edit actions. |
+
+Supported actions are `add_panel`, `update_query_panel`, `update_text_panel`, `duplicate_panel`, `remove_panel`, `set_panel_size`, `tidy_layout`, `update_dashboard_details`, `set_filters`, and `set_time_settings`. Target existing panels by their returned `panel_id`. For size changes use `compact`, `standard`, `wide`, or `full`; never supply grid coordinates.
+
+Use `set_filters` for whole-dashboard defaults. Its `filters` array replaces the complete saved list, so preserve filters the user did not ask to remove; `[]` clears all filters. For example, `{"action":"set_filters","filters":[{"kind":"userId","values":["example-user"]}]}` scopes supported panels to that user without changing their queries. Defaults persist for everyone opening the dashboard. Combine filters and panels in the same edit, or use only `set_filters` for a filter-only request; no query preview is needed when queries stay unchanged. For a new dashboard, create it first, then set filters using the returned revision. Filter kinds include properties, user traits, feature flags, signals, event names, conversation IDs, user IDs, models, tool names/counts, error counts, and error status. Discover uncertain keys and values before saving.
+
+Line and bar visualizations accept `seriesColors`, a map of legend labels to six-digit hex values. Only set it when the user names colors; otherwise use `palette`. Labels use readable field names without a group, the group alone with one numeric field, and `<group> · <field>` with several. Overlay groups start with the query name or ref and append the series-field value when present. Matching ignores case and treats underscores as spaces.
+
+On a revision conflict, reload and rebuild the actions. Do not just change `expected_revision`. Validation failures save nothing. The result contains `success`, `ui_type: "dashboard_edit_proposal"`, `dashboard_id`, `project_id`, summary, revision, `affected_panel_ids`, and URL. When actions include `set_filters`, the result also returns the saved `filters`, including `[]` when cleared. Otherwise it omits that field. Despite that response label, the edit is already saved.
+
+---
+
+## Signals
+
+### `raindrop_get_application_overview`
+Snapshot of your application: event/user/conversation counts with period-over-period trends, recent AI-discovered issues, and top active signals. Use this for an application overview. This tool was renamed from `raindrop_get_dashboard`; that name now reads a saved dashboard definition.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
