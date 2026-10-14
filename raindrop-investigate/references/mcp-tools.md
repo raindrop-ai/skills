@@ -432,20 +432,27 @@ Single signal group with its member signals.
 | `group_id` | string | Required |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
-### Signal authoring (MCP_SIGNAL)
-
-Create new code signals from MCP (requires the `MCP_SIGNAL` feature flag). OAuth users re-authorize for the `write:signals` scope; API keys need no setup. If these tools are missing from `list_tools`, suggest the user re-authenticate.
+### Signal creation
 
 | Tool | Purpose |
 |------|---------|
-| `raindrop_skills` | **Call first** with `topic: "signals"`. Loads the signal workflow. |
-| `raindrop_start_signal_session` | Start authoring. Returns `session_id` + `status: "authoring"`; reuse the same `project` + `session_id` throughout. |
-| `raindrop_get_signal_session` | Poll while authoring (long-polls ~20s) until `reviewing`, `ready`, or `failed`. |
-| `raindrop_get_signal_session_status` | Lightweight status check. |
-| `raindrop_get_signal_session_code` | Classifier source — only when the user explicitly asks. |
-| `raindrop_label_signal_batch` | Label every batch event once (`match` / `no_match` / `skip`). Required before refine or close. |
-| `raindrop_refine_signal_session` | Tighten boundaries after labeling; returns to authoring. |
-| `raindrop_close_signal_session` | `outcome: "create"` + `confirm: true`, or `outcome: "discard"`. Never auto-create. |
+| `raindrop_skills` | Call first with `topic: "signals"` to load the workflow. |
+| `raindrop_create_signal` | Author, test, and install a new signal in the background. Returns `status: "creating"` when started. |
+
+`raindrop_create_signal` requires `intent` and a specific `project`; `org` is
+optional. `positive_event_ids` and `negative_event_ids` default to empty arrays
+and accept up to 25 IDs each. Examples must be events from the selected project
+in the last 30 days. Positive IDs should match, negative IDs should not match,
+and an event cannot appear in both lists. OAuth callers need `write:signals`;
+API-key callers can also create signals.
+
+Prefer clear examples already inspected in the current conversation. Do not
+invent IDs or infer labels from aggregate counts or SQL summaries. Both lists
+may be empty; no search or labeling round is required before creation.
+
+Call once after the user requests creation. Acknowledge that it started and
+continue with the user's other work. Raindrop completes creation automatically;
+there is no polling, review session, or follow-up close call.
 
 ### Existing signal refinement
 

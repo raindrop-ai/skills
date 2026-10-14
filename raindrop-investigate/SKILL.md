@@ -99,15 +99,27 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 
 ### Creating Signals via MCP
 
-Author new code signals from your MCP client. Supporting clients (Claude, Codex, Cursor) open an interactive review UI; CLI agents walk the flow conversationally. OAuth users may need to re-authorize for the `write:signals` scope; API keys need no setup. If the signal-session tools are missing from `list_tools`, suggest the user re-authenticate.
+Create a new signal when the user asks for it. Load `raindrop_skills` with
+`topic: "signals"`, then call `raindrop_create_signal` with the requested
+`intent` and a specific `project`. Reuse the project already established in
+the conversation; clarify only when it is missing or ambiguous. OAuth callers
+need `write:signals`; API keys need no extra scope. If the tool is missing,
+suggest re-authentication.
 
-1. `raindrop_skills` with `topic: "signals"` first — load the signal workflow.
-2. `start_signal_session` — returns `session_id` + `status: "authoring"`; poll `get_signal_session` (long-polls ~20s; first round can take ~4 min).
-3. Review the draft: show every batch event with full I/O before labeling.
-4. `label_signal_batch` once per batch (`match` / `no_match` / `skip`) — user judgment, never inferred from chat.
-5. `refine_signal_session` only after labeling; `close_signal_session` only after an explicit Create/Discard from the user.
+Examples help define the boundary. Reuse events already inspected in this
+conversation: include `positive_event_ids` for clear matches and
+`negative_event_ids` for similar non-matches. Their labels must follow from
+the user's request and the inspected evidence. Never invent IDs or infer
+labels from aggregate counts or SQL summaries. Each list accepts up to 25
+IDs from the selected project in the last 30 days; an event cannot be both.
 
-One session, one project, review before labels, never auto-create.
+Both lists are optional. Create from the intent alone when no examples are
+known; do not require another search, a labeling round, or both kinds of
+examples. A creation request authorizes the run; investigation alone does not.
+
+Call once and acknowledge `status: "creating"` as a start, not completion.
+Raindrop authors, tests, and installs the signal in the background. Continue
+with the user's other work without polling or a follow-up close call.
 
 ### Build and edit dashboards through MCP
 
