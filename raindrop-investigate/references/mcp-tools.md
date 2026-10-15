@@ -437,7 +437,8 @@ Single signal group with its member signals.
 | Tool | Purpose |
 |------|---------|
 | `raindrop_skills` | Call first with `topic: "signals"` to load the workflow. |
-| `raindrop_create_signal` | Author, test, and install a new signal in the background. Returns `status: "creating"` when started. |
+| `raindrop_create_signal` | Author, test, and install a new signal in the background. Returns `status: "creating"` and a `session_id` when started. |
+| `raindrop_get_signal_creation_status` | Read creation status using that `session_id` and the same required `project`; `org` is optional. |
 
 `raindrop_create_signal` requires `intent` and a specific `project`; `org` is
 optional. `positive_event_ids` and `negative_event_ids` default to empty arrays
@@ -459,8 +460,13 @@ Both lists may be empty. Once the scope is clear, no extra search or labeling
 round is required before creation.
 
 Call once after the user requests creation. Acknowledge that it started and
-continue with the user's other work. Raindrop completes creation automatically;
-there is no MCP review app, session polling, or follow-up close call.
+retain the returned `session_id`. Check `raindrop_get_signal_creation_status`
+with that ID and the same project, waiting at least 10 seconds between checks
+while `data.status` is `creating`. Only `created` confirms installation and
+includes `signal_id`. Stop checking on `failed` or `cancelled`, and do not
+automatically retry creation. If `data` is null, the session could not be found
+in that project. Continue other work while creation runs; if you stop waiting,
+retain the ID for a later check. No review app or close call is required.
 
 ### Existing signal refinement
 

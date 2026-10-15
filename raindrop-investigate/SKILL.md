@@ -130,9 +130,17 @@ alone when no examples are known; do not require another search, a labeling
 round, or both kinds of examples. A creation request authorizes the run; investigation alone does not.
 
 Call once and acknowledge `status: "creating"` as a start, not completion.
-Raindrop authors, tests, and installs the signal in the background. Continue
-with the user's other work without an MCP review app, session polling, or a
-follow-up close call.
+Retain the returned `session_id`. Raindrop authors, tests, and installs the
+signal in the background.
+
+Call `raindrop_get_signal_creation_status` with that ID and the same `project`.
+The result is in `data`. Wait at least 10 seconds between checks while its
+`status` is `creating`; continue other work while it runs. Report success only
+for `created`, which includes the installed `signal_id`. Stop checking on
+`failed` or `cancelled` and report the outcome without automatically retrying
+creation. If `data` is null, the session could not be found in that project;
+do not infer success. If you stop waiting, say creation is still running and
+retain the ID for a later check. No review app or close call is required.
 
 ### Build and edit dashboards through MCP
 
