@@ -438,7 +438,7 @@ Single signal group with its member signals.
 |------|---------|
 | `raindrop_skills` | Call first with `topic: "signals"` to load the workflow. |
 | `raindrop_create_signal` | Author, test, and install a new signal in the background. Returns `status: "creating"` and a `session_id` when started. |
-| `raindrop_get_signal_creation_status` | Read creation status using that `session_id` and the same required `project`; `org` is optional. |
+| `raindrop_get_signal_creation_status` | Read creation status once when the user asks for an update, using that `session_id` and the same required `project`; `org` is optional. |
 
 `raindrop_create_signal` requires `intent` and a specific `project`; `org` is
 optional. `positive_event_ids` and `negative_event_ids` default to empty arrays
@@ -459,14 +459,17 @@ Do not invent IDs or infer labels from aggregate counts or SQL summaries.
 Both lists may be empty. Once the scope is clear, no extra search or labeling
 round is required before creation.
 
-Call once after the user requests creation. Acknowledge that it started and
-retain the returned `session_id`. Check `raindrop_get_signal_creation_status`
-with that ID and the same project, waiting at least 10 seconds between checks
-while `data.status` is `creating`. Only `created` confirms installation and
-includes `signal_id`. Stop checking on `failed` or `cancelled`, and do not
-automatically retry creation. If `data` is null, the session could not be found
-in that project. Continue other work while creation runs; if you stop waiting,
-retain the ID for a later check. No review app or close call is required.
+Call once after the user requests creation. Acknowledge that it started,
+retain the returned `session_id`, and return to the conversation. Raindrop
+finishes in the background. Do not wait, sleep, or poll.
+
+Only when the user asks for an update, call `raindrop_get_signal_creation_status`
+once with that ID and the same project. Report the result and return. If
+`data.status` is `creating`, say it is still running; do not wait or repeat the
+check. Only `created` confirms installation and includes `signal_id`. Report
+`failed` or `cancelled` without automatically retrying creation. If `data` is
+null, the session could not be found in that project. No review app or close
+call is required.
 
 ### Existing signal refinement
 
