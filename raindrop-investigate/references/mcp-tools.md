@@ -470,6 +470,10 @@ the clarified boundary in `intent` and use the answer to seed that event as
 positive or negative. Leave uncertain examples unlabeled. Without an event,
 ask about the ambiguous behavior using the agent context; no example is required.
 
+Keep `intent` close to the user's detection goal, adding only scope clarifications
+they supplied. Do not expand agent context or examples into extra rules, a case
+list, or implementation instructions. Put inspected examples in the seed lists.
+
 Reuse other clear examples already inspected in the current conversation.
 Do not invent IDs or infer labels from aggregate counts or SQL summaries.
 Both lists may be empty. Once the scope is clear, no extra search or labeling

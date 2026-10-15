@@ -128,7 +128,10 @@ user is still frustrated, or should it be excluded because the assistant
 resolved the problem?" Explain the relevant evidence and the boundary the
 answer will settle. Without an event, ask about the ambiguous behavior directly.
 
-Include the clarified scope in `intent`. Seed the inspected event in
+Keep `intent` close to the user's detection goal, adding only scope clarifications
+they supplied. Do not expand agent context or examples into extra rules, a case
+list, or implementation instructions. Put inspected examples in the seed lists.
+Seed the inspected event in
 `positive_event_ids` if the user says it should count, or `negative_event_ids`
 if they say it should not. Leave uncertain examples unlabeled. Ask only when
 the answer would change what the signal should detect; a clear request needs
