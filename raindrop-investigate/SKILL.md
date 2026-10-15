@@ -106,10 +106,22 @@ the conversation; ask which project only when it is missing or ambiguous.
 OAuth callers need `write:signals`; API keys need no extra scope. If the tool
 is missing, suggest re-authentication.
 
+First understand what the user's agent does. Reuse context already established
+in the conversation. Otherwise, load `raindrop_skills` topics `rql` and
+`rql_reference`, then use one small `raindrop_run_rql` query in the selected
+project to inspect representative recent activity, inputs, outputs, or tool use.
+Sample the agent's normal tasks and tools without filtering for the proposed signal.
+Set an explicit `time_range` of 24 hours or less and return only a small sample.
+Use this context to align the signal with the agent's behavior. Do not hunt for
+positive and negative events or keep widening the search. If RQL is unavailable,
+fails, or finds no activity, continue with the available context.
+
 Before creating, establish what counts, what is excluded, and whether to judge
 the current turn or the conversation. Broad labels such as "hallucinations" or
-"bad responses" need one or two focused questions. Wait for the answers; do not
-choose an unstated boundary. Reuse information already supplied. If an example
+"bad responses" need one or two focused questions when matching boundaries
+remain unclear. Wait for the answers; do not choose an unstated boundary.
+Preserve explicit scope rules and exclusions; ask before changing them or adding
+an exception. Reuse information already supplied. If an example
 remains ambiguous, ask before creating. Ground it in
 an event already inspected when possible: "Should this event count because the
 user is still frustrated, or should it be excluded because the assistant
