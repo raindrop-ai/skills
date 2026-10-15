@@ -470,6 +470,8 @@ finishes in the background. Do not wait, sleep, or poll.
 Only when the user asks for an update, call `raindrop_get_signal_creation_status`
 once with that ID and the same project. Report the result in `data` and return.
 Explain `phase`: preparing, scanning, reviewing, installing, or terminal.
+Scan totals apply to the current classifier revision and reset after refinement;
+a zero total does not mean earlier revisions scanned no events.
 `scan.scanned_total` counts events in completed batches, and `scan.matched_total`
 counts confirmed examples. Optional `progress` describes the current batch,
 including its activity and provisional matches. Do not report provisional matches
