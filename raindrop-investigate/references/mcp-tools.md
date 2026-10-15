@@ -447,7 +447,11 @@ in the last 30 days. Positive IDs should match, negative IDs should not match,
 and an event cannot appear in both lists. OAuth callers need `write:signals`;
 API-key callers can also create signals.
 
-If the scope is unclear, ask before creating. Use an inspected event when
+Before creating, establish what counts, what is excluded, and whether to judge
+the current turn or the conversation. Broad labels such as "hallucinations" or
+"bad responses" need one or two focused questions. Wait for the answers; do not
+choose an unstated boundary. Reuse information already supplied. If an example
+remains ambiguous, ask before creating. Use an inspected event when
 available: "Should this event count because the user is still frustrated, or
 should it be excluded because the assistant resolved the problem?" Include
 the clarified boundary in `intent` and use the answer to seed that event as
@@ -464,9 +468,14 @@ retain the returned `session_id`, and return to the conversation. Raindrop
 finishes in the background. Do not wait, sleep, or poll.
 
 Only when the user asks for an update, call `raindrop_get_signal_creation_status`
-once with that ID and the same project. Report the result and return. If
-`data.status` is `creating`, say it is still running; do not wait or repeat the
-check. Only `created` confirms installation and includes `signal_id`. Report
+once with that ID and the same project. Report the result in `data` and return.
+Explain `phase`: preparing, scanning, reviewing, installing, or terminal.
+`scan.scanned_total` counts events in completed batches, and `scan.matched_total`
+counts confirmed examples. Optional `progress` describes the current batch,
+including its activity and provisional matches. Do not report provisional matches
+as confirmed or invent a completion percentage. If `status` is `creating`, do not
+wait or repeat the check. Only `created` confirms installation and includes
+`signal_id`. Report
 `failed` or `cancelled` without automatically retrying creation. If `data` is
 null, the session could not be found in that project. No review app or close
 call is required.

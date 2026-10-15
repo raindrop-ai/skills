@@ -106,7 +106,11 @@ the conversation; ask which project only when it is missing or ambiguous.
 OAuth callers need `write:signals`; API keys need no extra scope. If the tool
 is missing, suggest re-authentication.
 
-If the scope is unclear, ask a focused question before creating. Ground it in
+Before creating, establish what counts, what is excluded, and whether to judge
+the current turn or the conversation. Broad labels such as "hallucinations" or
+"bad responses" need one or two focused questions. Wait for the answers; do not
+choose an unstated boundary. Reuse information already supplied. If an example
+remains ambiguous, ask before creating. Ground it in
 an event already inspected when possible: "Should this event count because the
 user is still frustrated, or should it be excluded because the assistant
 resolved the problem?" Explain the relevant evidence and the boundary the
@@ -135,8 +139,12 @@ tests, and installs the signal in the background. Do not wait, sleep, or poll.
 
 Only when the user asks for an update, call `raindrop_get_signal_creation_status`
 once with that ID and the same `project`. Report the result in `data` and
-return. If `status` is `creating`, say it is still running; do not wait or
-repeat the check. Only `created` confirms installation and includes the
+return. Explain `phase`: preparing, scanning, reviewing, installing, or terminal.
+`scan.scanned_total` counts events in completed batches, and `scan.matched_total`
+counts confirmed examples. Optional `progress` describes the current batch,
+including its activity and provisional matches. Do not report provisional matches
+as confirmed or invent a completion percentage. If `status` is `creating`, do not
+wait or repeat the check. Only `created` confirms installation and includes the
 `signal_id`. Report `failed` or `cancelled` without automatically retrying
 creation. If `data` is null, the session could not be found in that project;
 do not infer success. No review app or close call is required.
