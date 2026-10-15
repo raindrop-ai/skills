@@ -99,15 +99,66 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 
 ### Creating Signals via MCP
 
-Author new code signals from your MCP client. Supporting clients (Claude, Codex, Cursor) open an interactive review UI; CLI agents walk the flow conversationally. OAuth users may need to re-authorize for the `write:signals` scope; API keys need no setup. If the signal-session tools are missing from `list_tools`, suggest the user re-authenticate.
+Create a new signal when the user asks for it. Load `raindrop_skills` with
+`topic: "signals"`, then call `raindrop_create_signal` with the requested
+`intent` and a specific `project`. Reuse the project already established in
+the conversation; ask which project only when it is missing or ambiguous.
+OAuth callers need `write:signals`; API keys need no extra scope. If the tool
+is missing, suggest re-authentication.
 
-1. `raindrop_skills` with `topic: "signals"` first — load the signal workflow.
-2. `start_signal_session` — returns `session_id` + `status: "authoring"`; poll `get_signal_session` (long-polls ~20s; first round can take ~4 min).
-3. Review the draft: show every batch event with full I/O before labeling.
-4. `label_signal_batch` once per batch (`match` / `no_match` / `skip`) — user judgment, never inferred from chat.
-5. `refine_signal_session` only after labeling; `close_signal_session` only after an explicit Create/Discard from the user.
+Use one RQL query to read up to 100 events from the selected project over the
+last 24 hours. Use those events to understand the requested signal, clarify
+scope, and create it.
 
-One session, one project, review before labels, never auto-create.
+Before creating, establish what counts, what is excluded, and whether to judge
+the current turn or the conversation. Broad labels such as "hallucinations" or
+"bad responses" need one or two focused questions when matching boundaries
+remain unclear. Wait for the answers; do not choose an unstated boundary.
+Preserve explicit scope rules and exclusions; ask before changing them or adding
+an exception. Reuse information already supplied. If an example
+remains ambiguous, ask before creating. Ground it in
+an event already inspected when possible: "Should this event count because the
+user is still frustrated, or should it be excluded because the assistant
+resolved the problem?" Explain the relevant evidence and the boundary the
+answer will settle. Without an event, ask about the ambiguous behavior directly.
+
+Keep `intent` close to the user's detection goal, adding only scope clarifications
+they supplied. Do not expand agent context or examples into extra rules, a case
+list, or implementation instructions. Put inspected examples in the seed lists.
+Seed the inspected event in
+`positive_event_ids` if the user says it should count, or `negative_event_ids`
+if they say it should not. Leave uncertain examples unlabeled. Ask only when
+the answer would change what the signal should detect; a clear request needs
+no clarification or extra search.
+
+Examples help define the boundary. Reuse events already inspected in this
+conversation: include `positive_event_ids` for clear matches and
+`negative_event_ids` for similar non-matches. Their labels must follow from
+the user's request and the inspected evidence. Never invent IDs or infer
+labels from aggregate counts or SQL summaries. Each list accepts up to 25
+IDs from the selected project in the last 30 days; an event cannot be both.
+
+Both lists are optional. Once the scope is clear, create from the intent
+alone when no examples are known; do not require another search, a labeling
+round, or both kinds of examples. A creation request authorizes the run; investigation alone does not.
+
+Call `raindrop_create_signal` once, acknowledge that creation started, retain
+the returned `session_id`, and return to the conversation. Raindrop authors,
+tests, and installs the signal in the background. Do not wait, sleep, or poll.
+
+Only when the user asks for an update, call `raindrop_get_signal_creation_status`
+once with that ID and the same `project`. Report the result in `data` and
+return. Explain `phase`: preparing, scanning, reviewing, installing, or terminal.
+Scan totals apply to the current classifier revision and reset after refinement;
+a zero total does not mean earlier revisions scanned no events.
+`scan.scanned_total` counts events in completed batches, and `scan.matched_total`
+counts confirmed examples. Optional `progress` describes the current batch,
+including its activity and provisional matches. Do not report provisional matches
+as confirmed or invent a completion percentage. If `status` is `creating`, do not
+wait or repeat the check. Only `created` confirms installation and includes the
+`signal_id`. Report `failed` or `cancelled` without automatically retrying
+creation. If `data` is null, the session could not be found in that project;
+do not infer success. No review app or close call is required.
 
 ### Build and edit dashboards through MCP
 

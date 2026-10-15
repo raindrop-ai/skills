@@ -432,20 +432,65 @@ Single signal group with its member signals.
 | `group_id` | string | Required |
 | `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
 
-### Signal authoring (MCP_SIGNAL)
-
-Create new code signals from MCP (requires the `MCP_SIGNAL` feature flag). OAuth users re-authorize for the `write:signals` scope; API keys need no setup. If these tools are missing from `list_tools`, suggest the user re-authenticate.
+### Signal creation
 
 | Tool | Purpose |
 |------|---------|
-| `raindrop_skills` | **Call first** with `topic: "signals"`. Loads the signal workflow. |
-| `raindrop_start_signal_session` | Start authoring. Returns `session_id` + `status: "authoring"`; reuse the same `project` + `session_id` throughout. |
-| `raindrop_get_signal_session` | Poll while authoring (long-polls ~20s) until `reviewing`, `ready`, or `failed`. |
-| `raindrop_get_signal_session_status` | Lightweight status check. |
-| `raindrop_get_signal_session_code` | Classifier source — only when the user explicitly asks. |
-| `raindrop_label_signal_batch` | Label every batch event once (`match` / `no_match` / `skip`). Required before refine or close. |
-| `raindrop_refine_signal_session` | Tighten boundaries after labeling; returns to authoring. |
-| `raindrop_close_signal_session` | `outcome: "create"` + `confirm: true`, or `outcome: "discard"`. Never auto-create. |
+| `raindrop_skills` | Call first with `topic: "signals"` to load the workflow. |
+| `raindrop_create_signal` | Author, test, and install a new signal in the background. Returns `status: "creating"` and a `session_id` when started. |
+| `raindrop_get_signal_creation_status` | Read creation status once when the user asks for an update, using that `session_id` and the same required `project`; `org` is optional. |
+
+`raindrop_create_signal` requires `intent` and a specific `project`; `org` is
+optional. `positive_event_ids` and `negative_event_ids` default to empty arrays
+and accept up to 25 IDs each. Examples must be events from the selected project
+in the last 30 days. Positive IDs should match, negative IDs should not match,
+and an event cannot appear in both lists. OAuth callers need `write:signals`;
+API-key callers can also create signals.
+
+Use one RQL query to read up to 100 events from the selected project over the
+last 24 hours. Use those events to understand the requested signal, clarify
+scope, and create it.
+
+Before creating, establish what counts, what is excluded, and whether to judge
+the current turn or the conversation. Broad labels such as "hallucinations" or
+"bad responses" need one or two focused questions when matching boundaries
+remain unclear. Wait for the answers; do not choose an unstated boundary.
+Preserve explicit scope rules and exclusions; ask before changing them or adding
+an exception. Reuse information already supplied. If an example
+remains ambiguous, ask before creating. Use an inspected event when
+available: "Should this event count because the user is still frustrated, or
+should it be excluded because the assistant resolved the problem?" Include
+the clarified boundary in `intent` and use the answer to seed that event as
+positive or negative. Leave uncertain examples unlabeled. Without an event,
+ask about the ambiguous behavior using the agent context; no example is required.
+
+Keep `intent` close to the user's detection goal, adding only scope clarifications
+they supplied. Do not expand agent context or examples into extra rules, a case
+list, or implementation instructions. Put inspected examples in the seed lists.
+
+Reuse other clear examples already inspected in the current conversation.
+Do not invent IDs or infer labels from aggregate counts or SQL summaries.
+Both lists may be empty. Once the scope is clear, no extra search or labeling
+round is required before creation.
+
+Call once after the user requests creation. Acknowledge that it started,
+retain the returned `session_id`, and return to the conversation. Raindrop
+finishes in the background. Do not wait, sleep, or poll.
+
+Only when the user asks for an update, call `raindrop_get_signal_creation_status`
+once with that ID and the same project. Report the result in `data` and return.
+Explain `phase`: preparing, scanning, reviewing, installing, or terminal.
+Scan totals apply to the current classifier revision and reset after refinement;
+a zero total does not mean earlier revisions scanned no events.
+`scan.scanned_total` counts events in completed batches, and `scan.matched_total`
+counts confirmed examples. Optional `progress` describes the current batch,
+including its activity and provisional matches. Do not report provisional matches
+as confirmed or invent a completion percentage. If `status` is `creating`, do not
+wait or repeat the check. Only `created` confirms installation and includes
+`signal_id`. Report
+`failed` or `cancelled` without automatically retrying creation. If `data` is
+null, the session could not be found in that project. No review app or close
+call is required.
 
 ### Existing signal refinement
 
