@@ -102,9 +102,21 @@ After a fix is deployed, use `get_event_timeseries` to monitor the signal trend.
 Create a new signal when the user asks for it. Load `raindrop_skills` with
 `topic: "signals"`, then call `raindrop_create_signal` with the requested
 `intent` and a specific `project`. Reuse the project already established in
-the conversation; clarify only when it is missing or ambiguous. OAuth callers
-need `write:signals`; API keys need no extra scope. If the tool is missing,
-suggest re-authentication.
+the conversation; ask which project only when it is missing or ambiguous.
+OAuth callers need `write:signals`; API keys need no extra scope. If the tool
+is missing, suggest re-authentication.
+
+If the scope is unclear, ask a focused question before creating. Ground it in
+an event already inspected when possible: "Should this event count because the
+user is still frustrated, or should it be excluded because the assistant
+resolved the problem?" Explain the relevant evidence and the boundary the
+answer will settle. Without an event, ask about the ambiguous behavior directly.
+
+Include the clarified scope in `intent`. Seed the inspected event in
+`positive_event_ids` if the user says it should count, or `negative_event_ids`
+if they say it should not. Leave uncertain examples unlabeled. Ask only when
+the answer would change what the signal should detect; a clear request needs
+no clarification or extra search.
 
 Examples help define the boundary. Reuse events already inspected in this
 conversation: include `positive_event_ids` for clear matches and
@@ -113,13 +125,14 @@ the user's request and the inspected evidence. Never invent IDs or infer
 labels from aggregate counts or SQL summaries. Each list accepts up to 25
 IDs from the selected project in the last 30 days; an event cannot be both.
 
-Both lists are optional. Create from the intent alone when no examples are
-known; do not require another search, a labeling round, or both kinds of
-examples. A creation request authorizes the run; investigation alone does not.
+Both lists are optional. Once the scope is clear, create from the intent
+alone when no examples are known; do not require another search, a labeling
+round, or both kinds of examples. A creation request authorizes the run; investigation alone does not.
 
 Call once and acknowledge `status: "creating"` as a start, not completion.
 Raindrop authors, tests, and installs the signal in the background. Continue
-with the user's other work without polling or a follow-up close call.
+with the user's other work without an MCP review app, session polling, or a
+follow-up close call.
 
 ### Build and edit dashboards through MCP
 

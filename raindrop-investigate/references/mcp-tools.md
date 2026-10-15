@@ -446,13 +446,21 @@ in the last 30 days. Positive IDs should match, negative IDs should not match,
 and an event cannot appear in both lists. OAuth callers need `write:signals`;
 API-key callers can also create signals.
 
-Prefer clear examples already inspected in the current conversation. Do not
-invent IDs or infer labels from aggregate counts or SQL summaries. Both lists
-may be empty; no search or labeling round is required before creation.
+If the scope is unclear, ask before creating. Use an inspected event when
+available: "Should this event count because the user is still frustrated, or
+should it be excluded because the assistant resolved the problem?" Include
+the clarified boundary in `intent` and use the answer to seed that event as
+positive or negative. Leave uncertain examples unlabeled. Without an event,
+ask about the ambiguous behavior directly; no search is required to clarify.
+
+Reuse other clear examples already inspected in the current conversation.
+Do not invent IDs or infer labels from aggregate counts or SQL summaries.
+Both lists may be empty. Once the scope is clear, no extra search or labeling
+round is required before creation.
 
 Call once after the user requests creation. Acknowledge that it started and
 continue with the user's other work. Raindrop completes creation automatically;
-there is no polling, review session, or follow-up close call.
+there is no MCP review app, session polling, or follow-up close call.
 
 ### Existing signal refinement
 
