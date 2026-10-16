@@ -28,7 +28,7 @@ Dashboard previews require an explicit `time_range: {from, to}` with ISO timesta
 
 **Pagination:** List tools use `cursor` (not `offset`) for pagination. `raindrop_run_rql` uses `LIMIT` and has no cursor.
 
-**Links:** Events, conversations (and each turn returned by `raindrop_get_conversation`), issues, signals, and stumbles include a `url` that opens the item in the Raindrop app. Use it as-is when linking; don't build app URLs. Rows from `raindrop_list_conversations` and metric signals have no `url`.
+**Links:** Events, conversations (and each turn returned by `raindrop_get_conversation`), issues, signals, stumbles, and datasets include a `url` that opens the item in the Raindrop app. Use it as-is when linking; don't build app URLs. Rows from `raindrop_list_conversations` and metric signals have no `url`.
 
 **Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed; ask the user if several projects could apply. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
 
