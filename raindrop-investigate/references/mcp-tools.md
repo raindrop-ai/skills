@@ -16,6 +16,7 @@
 - [Traces](#traces)
 - [Issues](#issues)
 - [Stumbles](#stumbles)
+- [Triage delegation](#triage-delegation)
 - [Docs & Feedback](#docs--feedback)
 
 Auth: org API key or OAuth 2.1 token (via PropelAuth introspection).
@@ -30,7 +31,7 @@ Dashboard previews require an explicit `time_range: {from, to}` with ISO timesta
 
 **Links:** Events, conversations (and each turn returned by `raindrop_get_conversation`), issues, signals, stumbles, and datasets include a `url` that opens the item in the Raindrop app. Use it as-is when linking; don't build app URLs. Rows from `raindrop_list_conversations` and metric signals have no `url`.
 
-**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed; ask the user if several projects could apply. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
+**Projects:** Most read tools accept an optional `project` parameter that scopes the call to a single [project](https://raindrop.ai/docs/platform/projects). Omitting `project` (or passing `"default"`) reads from the org's built-in **Production** project on aggregate/list tools. **Required on investigation-tier tools:** `raindrop_get_conversation`, `raindrop_list_events`, `raindrop_get_event`, and `raindrop_get_trace` — use a project slug provided by the user or already resolved in the current organization. Call `raindrop_list_projects` only when the slug is unknown; ask the user if several projects fit. Multi-project orgs pass a project slug to target one project at a time; reads are isolated per project. An unknown or archived slug is rejected.
 
 **All-projects reads:** Pass `*` as `project` on the org-capable read tools — `raindrop_list_events`, `raindrop_search_events`, `raindrop_get_event_count`, `raindrop_get_event_timeseries`, `raindrop_get_event_facets`, `raindrop_list_conversations`, and `raindrop_list_users` — to read across all active projects; rows carry a `project_id`. Single-row lookups (`raindrop_get_event`, `raindrop_get_conversation`, `raindrop_get_trace`, signals, issues, stumbles, dashboard) still require a concrete project (not `*`).
 
@@ -39,14 +40,14 @@ Dashboard previews require an explicit `time_range: {from, to}` with ISO timesta
 ## RQL
 
 ### `raindrop_skills`
-Load the guide for the task: `rql` for counts, breakdowns, trends, and comparisons; `rql_reference` for the full RQL schema and functions; `explore` for individual records and semantic search; `dashboards` for creating and editing saved dashboards; `signals` for signal authoring; `evals` for eval workflows; and `triage` for explicit delegation to Raindrop Triage. Analytical questions can start with `rql` directly.
+Load the workflow guide before calling its tools, even when the right tool seems obvious. Read it before making the next tool call. Reuse a guide already in context. 'explore': direct investigation, record reads, search, counts, trends, and facets. 'rql': SQL analytics with run_rql, including rates, grouped distinct counts, and exact historical windows. A workflow answered entirely with run_rql needs only this guide. 'rql_reference': additional tables, fields, and functions; load it only when the rql guide lacks what the query needs. 'dashboards': create or edit a saved dashboard directly. 'signals': create or refine a signal when the user requests a change. 'triage': delegate to the hosted Raindrop agent only at the user's explicit request, or continue an existing Triage conversation. Investigate directly with explore otherwise. Omit topic to list available guides.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `topic` | string | Optional guide name; omit to list available guides |
 
-### `raindrop_run_rql`
-Run one read-only RQL `SELECT` over `events`, `traces`, `users`, or `conversations` in one concrete project. Use a project slug provided by the user or already resolved in the current organization. Use `raindrop_list_projects` to discover projects or verify the selection when needed. Use RQL for counts, breakdowns, trends, and comparisons. Load `raindrop_skills` with `topic: "rql"` directly for common event fields and checked examples; loading `explore` first is unnecessary. Use `topic: "rql_reference"` for the full table and function reference and additional examples. Keep semantic search, efficient dedicated rollups, signal tools, and event or trace detail tools for questions they answer better. Give computed expressions aliases that do not reuse source column names.
+### `raindrop_run_rql` (`run_rql` on the server)
+Run one read-only SQL SELECT over one project's events, traces, users, or conversations. Use for rates, multi-field breakdowns, grouped distinct counts, ranked time buckets, or exact historical event/trace windows that period-based tools cannot express. For a simple recent count, trend, or top values, use get_event_count, get_event_timeseries, or get_event_facets. Load raindrop_skills topic rql before writing SQL. Raw events and traces require a time_range of at most 7 days; it defaults to the last 7 days. RQL supports identity IN subqueries, but no FROM subqueries, joins, unions, or window functions. Results are redacted and limited to 100 rows by default, at most 1000; a limited result is not a population total. An org runs at most 8 queries at once.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -57,18 +58,18 @@ Run one read-only RQL `SELECT` over `events`, `traces`, `users`, or `conversatio
 
 Count events with `uniqExact(event_id)` and spans with `uniqExact(tuple(trace_id, span_id))`. MCP enforces a maximum seven-day window for events and traces. Pass `time_range: {from, to}` for historical or narrower windows; omission selects the latest seven days. Choose 24 hours when the user gives no timeframe. SQL predicates can narrow that window but cannot widen or move it. Query successive windows for longer investigations and reuse the same explicit window while paging. The window does not apply to lifetime user or conversation rollups. Keep raw-text and serialized-payload searches within 24 hours with a selective predicate. MCP uses the same RQL compiler as Triage. A `LIMIT` caps returned rows, not scan cost. The default is 100 rows; the explicit maximum is 1,000.
 
-Results include `columns`, `data`, `rowCount`, limit and truncation flags, `statistics`, the enforced `timeRange` for events and traces, default-window information, and supported `reference_targets`. `rowCount` counts returned rows before clipping, not all matching events. Report the time range and any clipping. Errors carry a message and source span for query correction; narrow a timed-out query before retrying. Content is redacted. Organizations with zero data retention enabled or unverified cannot run this tool.
+Results include `columns`, `data`, `rowCount`, limit and truncation flags, `statistics`, the enforced `timeRange` for events and traces, default-window information, and supported `reference_targets`. `rowCount` counts SQL result rows before response-size clipping. It excludes rows and groups removed by SQL LIMIT. Check `truncated` and the returned data length against `rowCount`; reaching the effective limit does not prove completeness. For a distribution of per-entity counts, group by identity and compute locally only when every group is present. Verify the group count with a distinct-identity aggregate if the result reaches its limit; otherwise use a supported identity subquery or report the limitation. RQL supports no FROM subqueries, joins, unions, or window functions. Report the requested time range and material limits in the requested output format. Errors carry a message and source span for correction. Do not retry an unchanged timeout or silently narrow the requested population. Content is redacted. Organizations with zero data retention enabled or unverified cannot run this tool.
 
 ---
 
 ## Projects
 
-### `raindrop_list_projects`
-List the projects in your organization. Pass a returned `project` value to any read tool's `project` parameter to scope the call to that project. The `is_default` field marks the project used when `project` is omitted. Single-project orgs only ever see the default **Production** project here.
+### `raindrop_list_projects` (`list_projects` on the server)
+Discover project slugs in an organization when the project is unknown. Reuse a slug supplied by the user or already resolved in this organization. If several projects fit, ask the user to choose. Pass the returned 'project' value to any read tool's 'project' parameter to scope the call to that project. The 'is_default' field marks the project used when 'project' is omitted. Provide 'org' to list projects for a specific organization; omit it to use your default.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| (none) | | Returns `project` (slug), `name`, and `is_default` for each active project |
+| `org` | string | Optional organization reference; omission selects the default organization |
 
 ---
 
@@ -93,7 +94,7 @@ Without `convo_id`: newest first, default `period: "30d"`. With `convo_id`: olde
 | `user_traits` | array | Filter by user trait key/value pairs |
 | `include_system_prompt` | boolean | Truncated prompt snapshot (default: `false`). With `convo_id`: one top-level snapshot + `system_prompt_snapshot_turn_id`; without: per-row snapshots |
 | `period` | string | How far back to look (default: `"30d"`). **Ignored when `convo_id` is set.** |
-| `project` | string | **Required.** Project slug from `raindrop_list_projects`, or `*` for org-wide read |
+| `project` | string | **Required.** Reuse a project slug supplied by the user or resolved in this organization; discover it only when unknown, or `*` for org-wide read |
 
 ### `raindrop_get_event`
 Single event by ID. Returns full input, output, properties, and matched signals, plus per-event enrichment: `user_traits` and a truncated `system_prompt_snapshot`. Use for one specific turn; to read all turns of a conversation use `raindrop_list_events` with `convo_id`.
@@ -101,7 +102,7 @@ Single event by ID. Returns full input, output, properties, and matched signals,
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `event_id` | string | Required |
-| `project` | string | **Required.** Project slug from `raindrop_list_projects` |
+| `project` | string | **Required.** Reuse a project slug supplied by the user or resolved in this organization; discover it only when unknown |
 
 ### `raindrop_search_events`
 Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to find events matching a natural language description — this is the primary tool for pattern discovery.
@@ -115,10 +116,10 @@ Search events by text, regex, or semantic similarity. Use `mode: "semantic"` to 
 | `user_id` | string | Filter by user |
 | `event_name` | string | Filter by event name |
 | `period` | string | How far back to search (default: `"24h"`) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project, or pass `*` to read across all the org's active projects |
 
-### `raindrop_get_event_count`
-Aggregate event count with filters. Use for quantifying impact.
+### `raindrop_get_event_count` (`get_event_count` on the server)
+Count events matching filters over a recent period, such as the last 24h. Use for a single total without fetching event rows. For an exact historical from/to window, a rate, or grouped distinct counts, use run_rql.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -126,11 +127,16 @@ Aggregate event count with filters. Use for quantifying impact.
 | `convo_id` | string | Filter by conversation |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
+| `model` | string | Optional exact model name |
+| `feature_flags` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `properties` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `user_traits` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `org` | string | Optional organization reference; omission selects the default organization |
 | `period` | string | How far back to count (default: `"24h"`) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project, or pass `*` to read across all the org's active projects |
 
-### `raindrop_get_event_timeseries`
-Event counts bucketed by time interval. Use for trend analysis. Ensure `period` is wider than `interval` (e.g., use `"7d"` or wider for daily buckets).
+### `raindrop_get_event_timeseries` (`get_event_timeseries` on the server)
+Get event counts over a recent period, bucketed by the specified interval. Use for a volume trend; use run_rql for an exact historical from/to window, rates, or ranked time buckets. Ensure the period is larger than the interval (e.g. use '7d' or wider for weekly buckets, '30d' for monthly).
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -138,21 +144,31 @@ Event counts bucketed by time interval. Use for trend analysis. Ensure `period` 
 | `user_id` | string | Filter by user |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
+| `model` | string | Optional exact model name |
+| `feature_flags` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `properties` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `user_traits` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `org` | string | Optional organization reference; omission selects the default organization |
 | `period` | string | Time range (default: `"7d"`) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project, or pass `*` to read across all the org's active projects |
 
-### `raindrop_get_event_facets`
-Top values for a field across events with counts. Use to understand distribution before filtering.
+### `raindrop_get_event_facets` (`get_event_facets` on the server)
+Get the top values of one event field with counts over a recent period. Use to discover event names, users, models, or triggered signal IDs. Top values are not a complete population. Use run_rql for multiple grouping fields, distinct counts per group, or an exact historical from/to window. Use list_signals for signal names, groups, sentiment, and activity counts.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `field` | `"event_name"` \| `"user_id"` \| `"signal_id"` | Field to facet |
+| `field` | `"event_name"` \| `"user_id"` \| `"signal_id"` \| `"ai_model"` | Field to facet |
 | `limit` | int (1–100) | Top N values (default: 20) |
 | `user_id` | string | Filter by user |
 | `event_name` | string | Filter by event name |
 | `signal_id` | string | Filter by signal |
+| `model` | string | Optional exact model name |
+| `feature_flags` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `properties` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `user_traits` | array | Optional `{key, op, value}` filters; `op` is `eq` or `neq` |
+| `org` | string | Optional organization reference; omission selects the default organization |
 | `period` | string | How far back to look (default: `"24h"`) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project, or pass `*` to read across all the org's active projects |
 
 ---
 
@@ -212,7 +228,7 @@ Paginated conversation list. Sorted by most recent message first.
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
 | `user_id` | string | Filter by user |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_conversation`
 Conversation overview: metadata plus slim chronological turns (event `id`, `event_name`, `timestamp`, truncated I/O, tool-call counts). Start here, then go deeper with `raindrop_list_events` (`convo_id`) for full turns or `raindrop_get_trace` on a turn's `id`. No system prompt here — use `raindrop_get_trace` with `span_type: "SYSTEM_PROMPT"`.
@@ -222,7 +238,7 @@ Conversation overview: metadata plus slim chronological turns (event `id`, `even
 | `conversation_id` | string | Required |
 | `event_limit` | int (1–100) | Max turns to include (default: 50) |
 | `cursor` | string | Pagination cursor from a previous response's `page_info.next_cursor` |
-| `project` | string | **Required.** Project slug from `raindrop_list_projects` |
+| `project` | string | **Required.** Reuse a project slug supplied by the user or resolved in this organization; discover it only when unknown |
 
 Returns `page_info` (`total_messages`, `returned`, `has_more`, `next_cursor`) for paging through long conversations.
 
@@ -240,7 +256,7 @@ Paginated user list.
 | `user_id` | string | Filter to a specific user ID |
 | `order_by` | `"last_seen"` \| `"first_seen"` | Sort field (default: `"last_seen"`) |
 | `order_direction` | `"asc"` \| `"desc"` | Sort direction (default: `"desc"`) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project, or pass `*` to read across all the org's active projects |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project, or pass `*` to read across all the org's active projects |
 
 ### `raindrop_get_user`
 Single user with traits, first/last seen timestamps, and event count.
@@ -248,17 +264,16 @@ Single user with traits, first/last seen timestamps, and event count.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `user_id` | string | Required |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
 
 ---
 
 ## Dashboards
 
-Load `raindrop_skills` with `topic: "dashboards"` before authoring. Use `topic: "rql"` or `"rql_reference"` for query syntax. All tools accept optional `org` to select an accessible organization. Direct writes require an OAuth user and `write:dashboards`; API keys can read organization-shared dashboards but cannot create or edit them. Both write tools save immediately. Refresh cached tool inventories after the overview rename.
+Load `raindrop_skills` with `topic: "dashboards"` before authoring. Use `topic: "rql"` or `"rql_reference"` for query syntax. All tools accept optional `org` to select an accessible organization. API keys and OAuth can create and edit organization-shared dashboards without a separate dashboard write scope; private dashboards remain accessible only to their signed-in owner. Both write tools save immediately. Refresh cached tool inventories after the overview rename.
 
-### `raindrop_list_dashboards`
-
-List accessible dashboards, including the built-in Usage board. Omit `project` to list across projects, or pass a project to narrow the catalog. Pass `dashboard_id` or an exact `name` for a snapshot; `dashboard_id` wins. Catalog entries include IDs, titles, scope, links, and panel summaries, without query text. Named snapshots apply the saved `filters` and return them with the board. Each query result reports `skippedDashboardFilters` for filter kinds its source cannot apply. Private dashboards appear only to their owner.
+### `raindrop_list_dashboards` (`list_dashboards` on the server)
+List Raindrop dashboards the viewer can see (own plus org-visible), including the built-in Usage board (id default-usage). Omit project to list across every project and all-projects boards. Pass project to list that project only; reuse a known project slug or call list_projects when it is unknown. Without dashboard_id or name, the catalog is titles and JSON for the model: id, title, visibility, updated_at, url, project_id, panel_count, and panels as title, kind, and visualization. project_id is null for all-projects boards. No query text and no numbers. The interactive app renders only for a named-board snapshot: pass dashboard_id or name for headline values in the current window. Snapshots apply saved dashboard-wide filters and return them with the board; each query reports skippedDashboardFilters for unsupported kinds. dashboard_id wins if both are set. Name is a case-insensitive exact title. If a board the user names is missing, tell them private boards (not shared with the org) only appear for their owner. Load raindrop_skills topic dashboards to create or edit a dashboard. Read its full definition with get_dashboard before editing. API keys can create and edit org-shared dashboards.
 
 | Parameter | Type | Description |
 | --- | --- | --- |
@@ -393,7 +408,7 @@ Snapshot of your application: event/user/conversation counts with period-over-pe
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `period` | string | Time window (default: `"24h"`) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
 
 ### `raindrop_list_signals`
 All signals for your organization (topics, regex, instrumented, metrics). Sorted by most recently created.
@@ -402,7 +417,7 @@ All signals for your organization (topics, regex, instrumented, metrics). Sorted
 |-----------|------|-------------|
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
 
 ### `raindrop_get_signal`
 Signal metadata + occurrence count + timeseries trend in a single call. Use to understand a signal's scope and trajectory before diving into events.
@@ -411,7 +426,7 @@ Signal metadata + occurrence count + timeseries trend in a single call. Use to u
 |-----------|------|-------------|
 | `signal_id` | string | Required |
 | `period` | string | Time window for counts and timeseries (default: `"24h"`) |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
 
 Returns: signal definition, `occurrence_count`, and a `timeseries` array (hourly for periods ≤24h, daily otherwise).
 
@@ -422,7 +437,7 @@ Signal groups for your organization. Groups are collections of related signals (
 |-----------|------|-------------|
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
 
 ### `raindrop_get_signal_group`
 Single signal group with its member signals.
@@ -430,7 +445,7 @@ Single signal group with its member signals.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `group_id` | string | Required |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
 
 ### Signal creation
 
@@ -561,7 +576,7 @@ with `cursor` to inspect the trace. To re-read a truncated payload, use its `spa
 | `span_type` | `"INTERNAL"` \| `"LLM_GENERATION"` \| `"LLM_GENERATION_STREAM"` \| `"TOOL_CALL"` \| `"SYSTEM_PROMPT"` | Filter to a specific span type; `"SYSTEM_PROMPT"` returns the full system prompt |
 | `status` | `"UNSET"` \| `"OK"` \| `"ERROR"` | Filter by span status — use `"ERROR"` to find failures |
 | `limit` | int (1–200) | Max spans to return (default: 50) |
-| `project` | string | **Required.** Project slug from `raindrop_list_projects` |
+| `project` | string | **Required.** Reuse a project slug supplied by the user or resolved in this organization; discover it only when unknown |
 
 ---
 
@@ -577,7 +592,7 @@ AI-discovered investigation reports for **broad shifts in your event distributio
 | `status` | `"active"` \| `"all"` | `"active"` excludes ignored/rejected issues (default: `"active"`) |
 | `limit` | int (1–100) | Max results (default: 25) |
 | `cursor` | string | Pagination cursor |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
 
 ### `raindrop_get_issue`
 Full AI-generated investigation report. Includes title, description, tags, timeline of events, and related events.
@@ -585,7 +600,7 @@ Full AI-generated investigation report. Includes title, description, tags, timel
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `issue_id` | string | Required |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
 
 ---
 
@@ -604,7 +619,24 @@ The response also includes `cadence_minutes` and `last_run_at`: stumbles are det
 | `created_after` | string (ISO) | Only stumbles created after this time. Defaults to `max(24h ago, 2 × cadence_minutes ago)` so low-cadence orgs cover at least two scan windows |
 | `created_before` | string (ISO) | Only stumbles created before this time |
 | `page` | int | Page number (default: 1); each page returns up to 50 |
-| `project` | string | Scope to a project (from `raindrop_list_projects`); omit for the default project |
+| `project` | string | Reuse a known project slug; discover it with `raindrop_list_projects` only when unknown; omit for the default project |
+
+---
+
+## Triage delegation
+
+### `raindrop_ask_agent_question` (`ask_agent_question` on the server)
+Delegate to Raindrop's hosted Triage agent only when the user explicitly asks for Raindrop Triage or wants to continue an existing Triage conversation. Starts a conversation or sends a follow-up. For a new conversation, pass the user-selected project in project; omission allows reads across all projects. Naming a project only in the message does not scope the conversation. Returns a turn_id; poll get_agent_progress with it as agent_turn_id until done, error, or cancelled. Reuse conversation_id for follow-ups. For dashboard creation and editing, use the direct create_dashboard and edit_dashboard tools with the dashboards skill. Hosted Triage can also save dashboard changes when explicitly delegated; API keys can save org-shared dashboards.
+
+Load `raindrop_skills` topic `triage` first. A project named only in the message does not scope
+the conversation. Pass its slug in `project` when starting a project-specific investigation.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `message` | string | Required, nonblank question and context for Triage |
+| `conversation_id` | string | Existing Triage conversation to continue; omit for a new one |
+| `project` | string | Selected project for a new conversation; omission permits all projects. Ignored on follow-ups. |
+| `org` | string | Optional organization reference; omission selects the default organization |
 
 ---
 
