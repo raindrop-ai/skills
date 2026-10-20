@@ -523,14 +523,15 @@ callers need no extra scope.
 
 Create an RQL signal after the user asks for one: a saved RQL boolean
 expression over the events table, evaluated when the signal is read (counts,
-chart, events), never at inference time. Use it to condition one signal on
-another, e.g. `has(signals, '<signal_a_id>') AND has(signals, '<signal_b_id>')`,
-or `has(signals, '<a>') AND NOT has(signals, '<b>')`. Structured fields such as
-`event_name`, `user_id`, `properties['key']`, `feature_flags['key']`, and
-`tool_call_names` can narrow it further. Get signal ids from `list_signals`;
-only topic, code, and instrumented signals can be chained. `ai_input` and
-`ai_output` cannot be used; ask for a code signal (`create_signal`) for text
-matching. Write only the expression: no `SELECT`, `FROM`, `GROUP BY`,
+chart, events), never at inference time. Use it only when the user explicitly
+asks for a new signal conditioned on, piggybacking on, or only firing on
+existing signals, e.g. `has(signals, '<signal_a_id>') AND has(signals,
+'<signal_b_id>')`, or `has(signals, '<a>') AND NOT has(signals, '<b>')`.
+Otherwise create a classifier signal (`create_signal`), even when existing
+signals could approximate the request. Only signal membership is allowed: an
+AND of `has(signals, '<id>')` terms, OR groups of them, and NOT of either. Get
+signal ids from `list_signals`; only topic, code, and instrumented signals can
+be chained. Write only the expression: no `SELECT`, `FROM`, `GROUP BY`,
 `ORDER BY`, `LIMIT`, or time filter. Check the predicate with `run_rql` first
 when unsure. Returns the new signal, its url, and its last-7-day match count.
 

@@ -177,13 +177,19 @@ do not infer success. No review app or close call is required.
 
 ### Chaining Signals with RQL Signals
 
-When the user wants one signal conditioned on another, such as "A without B",
-use `create_rql_signal` instead of `raindrop_create_signal`. An RQL signal is a
-saved RQL boolean expression over events, evaluated when the signal is read,
-for example `has(signals, '<a>') AND NOT has(signals, '<b>')`. Take signal ids
-from `list_signals`; only topic, code, and instrumented signals can be chained.
-Check the predicate with `run_rql` before creating it. Do not use `ai_input` or
-`ai_output`; text matching needs a code signal from `raindrop_create_signal`.
+Use `create_rql_signal` only when the user explicitly asks for a new signal
+that is conditioned on, piggybacks on, or only fires on existing signals, such
+as "only when X also fired", "X but not Y", or "build this on top of X".
+Otherwise create a classifier with `raindrop_create_signal`, even when existing
+signals could approximate the request: two signals on the same event only means
+both happened, not that one is about the other. You may mention that chaining
+is possible, but do not create an RQL signal unless asked.
+
+An RQL signal is a saved expression evaluated when the signal is read, built
+only from `has(signals, '<id>')` terms joined by AND, OR groups, and NOT, for
+example `has(signals, '<a>') AND NOT has(signals, '<b>')`. Take signal ids from
+`list_signals`; only topic, code, and instrumented signals can be chained.
+Check the predicate with `run_rql` before creating it.
 Edit an existing RQL signal with `update_rql_signal`; a new predicate applies
 to every read immediately, with no backfill. Both tools appear only for
 organizations with RQL signals enabled, and OAuth callers need `write:signals`.
