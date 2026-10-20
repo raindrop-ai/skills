@@ -175,6 +175,20 @@ wait or repeat the check. Only `created` confirms installation and includes the
 creation. If `data` is null, the session could not be found in that project;
 do not infer success. No review app or close call is required.
 
+### Chaining Signals with RQL Signals
+
+When the user wants one signal conditioned on another, such as "A without B",
+use `create_rql_signal` instead of `raindrop_create_signal`. An RQL signal is a
+saved RQL boolean expression over events, evaluated when the signal is read,
+for example `has(signals, '<a>') AND NOT has(signals, '<b>')`. Take signal ids
+from `list_signals`; only topic, code, and instrumented signals can be chained.
+Check the predicate with `run_rql` before creating it. Do not use `ai_input` or
+`ai_output`; text matching needs a code signal from `raindrop_create_signal`.
+Edit an existing RQL signal with `update_rql_signal`; a new predicate applies
+to every read immediately, with no backfill. Both tools appear only for
+organizations with RQL signals enabled, and OAuth callers need `write:signals`.
+See [the RQL signal tool reference](references/mcp-tools.md#rql-signals-rql_signals).
+
 ### Build and edit dashboards through MCP
 
 Load `raindrop_skills` with `topic: "dashboards"` when the user asks to create a dashboard or change its panels. Use the direct tools. Both `create_dashboard` and `edit_dashboard` save immediately and require OAuth with `write:dashboards`. API keys can read shared dashboards but cannot save them. Do not delegate to Triage to work around missing write permission.

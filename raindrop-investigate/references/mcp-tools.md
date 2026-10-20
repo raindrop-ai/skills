@@ -12,6 +12,7 @@
 - [Datasets](#datasets)
 - [Signals](#signals)
 - [Signal authoring (MCP_SIGNAL)](#signal-authoring-mcp_signal)
+- [RQL signals (RQL_SIGNALS)](#rql-signals-rql_signals)
 - [Existing signal refinement](#existing-signal-refinement)
 - [Traces](#traces)
 - [Issues](#issues)
@@ -506,6 +507,65 @@ wait or repeat the check. Only `created` confirms installation and includes
 `failed` or `cancelled` without automatically retrying creation. If `data` is
 null, the session could not be found in that project. No review app or close
 call is required.
+
+### RQL signals (RQL_SIGNALS)
+
+| Tool | Purpose |
+|------|---------|
+| `raindrop_create_rql_signal` (`create_rql_signal` on the server) | Save an RQL boolean expression over events as a signal, evaluated when the signal is read. Returns the new signal, its `url`, and its last-7-day match count. |
+| `raindrop_update_rql_signal` (`update_rql_signal` on the server) | Edit an existing RQL signal's name, description, sentiment, or predicate. |
+
+Both tools are registered only when the caller can reach an organization with
+the `RQL_SIGNALS` flag. OAuth callers also need `write:signals`; API-key
+callers need no extra scope.
+
+#### `raindrop_create_rql_signal`
+
+Create an RQL signal after the user asks for one: a saved RQL boolean
+expression over the events table, evaluated when the signal is read (counts,
+chart, events), never at inference time. Use it to condition one signal on
+another, e.g. `has(signals, '<signal_a_id>') AND has(signals, '<signal_b_id>')`,
+or `has(signals, '<a>') AND NOT has(signals, '<b>')`. Structured fields such as
+`event_name`, `user_id`, `properties['key']`, `feature_flags['key']`, and
+`tool_call_names` can narrow it further. Get signal ids from `list_signals`;
+only topic, code, and instrumented signals can be chained. `ai_input` and
+`ai_output` cannot be used; ask for a code signal (`create_signal`) for text
+matching. Write only the expression: no `SELECT`, `FROM`, `GROUP BY`,
+`ORDER BY`, `LIMIT`, or time filter. Check the predicate with `run_rql` first
+when unsure. Returns the new signal, its url, and its last-7-day match count.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `name` | string | **Required.** Signal name shown in the Signals list, 1–100 characters |
+| `description` | string | Optional. What the signal captures, in the user's words; up to 1,000 characters |
+| `predicate` | string | **Required.** RQL boolean expression over events, used as `WHERE (<predicate>)`; up to 4,000 characters |
+| `sentiment` | string | Optional: `NEGATIVE` for problems, `POSITIVE` for wins, `OTHER` otherwise |
+| `org` | string | Organization reference (from `list_organizations`). Omit to use your default organization |
+| `project` | string | **Required.** Project slug. Reuse a known slug in this organization; call `list_projects` only when unknown |
+
+Not idempotent: after an uncertain response, check `raindrop_list_signals`
+before retrying.
+
+#### `raindrop_update_rql_signal`
+
+Edit an existing RQL signal after the user asks to change it: its name,
+description, sentiment, or predicate. Pass only the fields to change; reuse the
+known signal id and project. A new predicate follows the same rules as
+`create_rql_signal` and applies to every read immediately (counts, chart,
+events, alerts); there is no backfill.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `signal_id` | string | **Required.** UUID of the RQL signal to edit |
+| `name` | string | Optional new name, 1–100 characters |
+| `description` | string | Optional new description, up to 1,000 characters |
+| `predicate` | string | Optional new RQL boolean expression over events, up to 4,000 characters |
+| `sentiment` | string | Optional new sentiment: `POSITIVE`, `NEGATIVE`, or `OTHER` |
+| `org` | string | Organization reference (from `list_organizations`). Omit to use your default organization |
+| `project` | string | **Required.** Project slug. Reuse a known slug in this organization; call `list_projects` only when unknown |
+
+Returns `{data: ...}` with the updated signal, or an error if the signal is not
+an RQL signal in that project.
 
 ### Existing signal refinement
 
