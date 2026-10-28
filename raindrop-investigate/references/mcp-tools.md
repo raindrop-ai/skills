@@ -504,7 +504,7 @@ as confirmed or invent a completion percentage. If `status` is `creating`, do no
 wait or repeat the check. Only `created` confirms installation and includes
 `signal_id`. Report
 `failed` or `cancelled` without automatically retrying creation. If `data` is
-null, the session could not be found in that project. No review app or close
+null, the session could not be found in that project. No review app or follow-up
 call is required.
 
 ### Existing signal refinement
@@ -531,7 +531,7 @@ work. Raindrop completes and applies the refinement automatically in the
 background.
 
 This uses the same headless refinement flow as the Signals page. No polling or
-`close_signal_session` call is needed.
+follow-up call is needed.
 
 ---
 
