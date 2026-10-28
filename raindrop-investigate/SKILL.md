@@ -173,7 +173,7 @@ as confirmed or invent a completion percentage. If `status` is `creating`, do no
 wait or repeat the check. Only `created` confirms installation and includes the
 `signal_id`. Report `failed` or `cancelled` without automatically retrying
 creation. If `data` is null, the session could not be found in that project;
-do not infer success. No review app or close call is required.
+do not infer success. No review app or follow-up call is required.
 
 ### Build and edit dashboards through MCP
 
@@ -215,7 +215,7 @@ Call `raindrop_refine_signal` for the accepted user JavaScript signal with its
 or a nonblank `comment`. Raindrop refines the classifier in the background and
 automatically applies the resulting definition to the same signal. Call once,
 acknowledge that refinement has started, and continue with the user's other
-work; there is no polling or follow-up close call. This uses the same headless
+work; there is no polling or follow-up call. This uses the same headless
 refinement flow as the Signals page; the response confirms that it started.
 
 ---
