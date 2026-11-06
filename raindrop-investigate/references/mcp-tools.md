@@ -270,7 +270,7 @@ Single user with traits, first/last seen timestamps, and event count.
 
 ## Dashboards
 
-Load `raindrop_skills` with `topic: "dashboards"` before authoring. Use `topic: "rql"` or `"rql_reference"` for query syntax. All tools accept optional `org` to select an accessible organization. API keys and OAuth can create and edit organization-shared dashboards without a separate dashboard write scope; private dashboards remain accessible only to their signed-in owner. Both write tools save immediately. Refresh cached tool inventories after the overview rename.
+Load `raindrop_skills` with `topic: "dashboards"` before authoring. Use `topic: "rql"` or `"rql_reference"` for query syntax. All tools accept optional `org` to select an accessible organization. API keys and OAuth can create and edit organization-shared dashboards without a separate dashboard write scope; private dashboards remain accessible only to their signed-in owner. Authoring tools save immediately. Refresh cached tool inventories after the overview rename.
 
 ### `raindrop_list_dashboards` (`list_dashboards` on the server)
 List Raindrop dashboards the viewer can see (own plus org-visible), including the built-in Usage board (id default-usage). Omit project to list across every project and all-projects boards. Pass project to list that project only; reuse a known project slug or call list_projects when it is unknown. Without dashboard_id or name, the catalog is titles and JSON for the model: id, title, visibility, updated_at, url, project_id, panel_count, and panels as title, kind, and visualization. project_id is null for all-projects boards. No query text and no numbers. The interactive app renders only for a named-board snapshot: pass dashboard_id or name for headline values in the current window. Snapshots apply saved dashboard-wide filters and return them with the board; each query reports skippedDashboardFilters for unsupported kinds. dashboard_id wins if both are set. Name is a case-insensitive exact title. If a board the user names is missing, tell them private boards (not shared with the org) only appear for their owner. Load raindrop_skills topic dashboards to create or edit a dashboard. Read its full definition with get_dashboard before editing. API keys can create and edit org-shared dashboards.
@@ -306,6 +306,24 @@ Validate and execute one exact panel query with dashboard time-range semantics. 
 | `time_range` | object | Required `{from, to}` ISO timestamps, positive duration of at most seven days. |
 
 Raw-text filters require at most 24 hours and a selective predicate. For longer saved ranges, preview a bounded subset and disclose it. Results include bounded rows, columns, query statistics, and preview metadata. They validate the query and do not establish the full dashboard's values or cost. Retention restrictions, redaction, query capacity controls, timeouts, and result limits apply. Narrow or simplify a timed-out query before retrying.
+
+### `raindrop_annotate_dashboard` (`annotate_dashboard` on the server)
+
+Leave a note at a moment on a dashboard, or on every dashboard of the project when `dashboard_id` is omitted. Notes appear as markers on applicable time-series panels, including shared links. API keys and OAuth can write notes without a separate dashboard write scope. Read the board's existing `notes` from a named `list_dashboards` snapshot or `get_dashboard` before investigating.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `org` | string | Optional organization selection. |
+| `project` | string | Required concrete project; `*` is unsupported. |
+| `dashboard_id` | string | Optional saved dashboard UUID. Omit for a project-wide note. |
+| `panel_id` | string | Optional panel ID from the dashboard. Requires `dashboard_id`. |
+| `at` | string | Required ISO timestamp when the change began, not when it was noticed. |
+| `until` | string | Optional ISO timestamp ending a span, such as a rollout. Omit for a single moment. |
+| `body` | string | Required note, 1–2,000 characters. Use one or two plain sentences with the numbers and cause. |
+| `url` | string | Optional HTTP(S) marker link, at most 2,048 characters. Defaults to the first evidence link. |
+| `evidence` | array | Required 1–10 objects with `kind` (1–40 characters), `label` (1–200 characters), and `url` (HTTP(S), at most 2,048 characters). |
+
+Write one note per supported finding, not one per commit. Investigate before recording a cause; if evidence is inconclusive, answer without writing a note. The tool saves immediately and is not idempotent, so check the board's notes before retrying an uncertain write. The result contains `success`, `annotation_id`, `dashboard_id` (null for a project note), `project_id`, `at`, and a scoped `url`.
 
 ### `raindrop_create_dashboard`
 
