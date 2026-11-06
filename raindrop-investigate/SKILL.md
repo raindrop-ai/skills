@@ -189,6 +189,8 @@ For whole-dashboard filtering, use `edit_dashboard` with a `set_filters` action.
 
 Line and bar visualizations support `seriesColors` keyed by legend label. Use overrides only when the user names colors; otherwise choose a palette. Preserve query text for presentation-only changes.
 
+To record a deploy, rollout step, or a cause you investigated, use `annotate_dashboard` with a concrete project, `at` set to when the change began, and at least one evidence link. Read the board's existing `notes` from a named `list_dashboards` snapshot or `get_dashboard` first. Omit `dashboard_id` for a note on every dashboard of the project; use `until` for a span. Write one note per finding, not per commit, and do not write a note for an inconclusive cause. Notes save immediately and are not idempotent; check existing notes before retrying an uncertain write.
+
 Return the saved dashboard link and summarize the change. Creation is not idempotent: after an uncertain response, check `list_dashboards` before retrying. Do not claim a save succeeded unless the tool confirms it. See [the dashboard tool reference](references/mcp-tools.md#dashboards) for inputs.
 
 **Tool rename:** The old overview tool `get_dashboard` is now `get_application_overview`, with the same overview inputs and output. `get_dashboard` now reads a saved dashboard and requires a dashboard ID or name and a project. Refresh cached tool inventories and migrate old overview calls.
