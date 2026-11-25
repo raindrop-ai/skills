@@ -19,6 +19,8 @@ Triage conversation. For a new delegated investigation, pass the selected projec
 `project` argument; naming it only in the message does not scope Triage. Use `evals` for
 evaluation workflows when the server exposes that topic.
 
+For dataset work, load `raindrop_skills` with `topic: "datasets"`. Use `list_datasets` to find a slug, then `read_dataset` to inspect rows. Use `upload_dataset` to create or bulk-load a dataset and `update_dataset_rows` to patch specific cells or tags. Use `delete_dataset_rows` to remove rows from the current version. Use `delete_dataset` only when the user asks to permanently delete the whole dataset and its history. See [the dataset tool reference](references/mcp-tools.md#datasets) for inputs.
+
 ## Principles
 
 - **Discovery-first.** Before filtering by signal or event name, see what's actually there. Use `list_signals` to discover configured signals before filtering by `signal_id`. Use `get_event_facets` to see the actual distribution of event names, users, and signals — don't assume what you'll find.

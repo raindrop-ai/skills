@@ -365,18 +365,76 @@ On a revision conflict, reload and rebuild the actions. Do not just change `expe
 
 ## Datasets
 
-Datasets are shared collections of saved events, traces, and their labels. All tools accept optional `org` and `project`. Write tools need `write:datasets` on OAuth tokens; API keys need no extra scope.
+Datasets are versioned tables that can hold custom rows, saved events, traces, and labels. All tools accept optional `org` and `project`. Dataset writes need an OAuth connection with `write` (older write grants still work) or a personal API key. Load `raindrop_skills` with `topic: "datasets"` for worked examples.
 
 ### `raindrop_list_datasets`
 
-List datasets with their IDs, slugs, and row counts. Pass `dataset_id` to inspect one dataset's rows, reference answers, saved event and trace references, and annotations. Use `get_event` or `get_trace` to inspect an individual artifact.
+List datasets with their IDs, slugs, column roles, row counts, and current versions. Pass `dataset_id` to read one page of rows, or use `read_dataset` for filtering or version selection.
 
 | Parameter | Type | Description |
 | --- | --- | --- |
 | `dataset_id` | string | Optional dataset ID or slug to inspect |
-| `artifact_kind` | string | Optional filter when inspecting: `event`, `trace`, or `custom` |
-| `limit` | number | Max members to return, 1–100 (default 50) |
+| `limit` | number | Max rows to return, 1–100 (default 50) |
 | `cursor` | string | Pagination cursor from a previous response |
+
+### `raindrop_read_dataset`
+
+Read rows from the current ready version or a specific older version. Returns `dataset`, `rows`, `next_cursor`, and a dataset `url` when available. Each row has `id`, `values`, and `tags`. Trace cells are summarized unless you request rows by ID.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dataset` | string | Required dataset slug from `list_datasets` |
+| `version_id` | string | Optional ready version ID |
+| `row_ids` | array | Optional 1–100 row IDs; returns full trace cells for those rows |
+| `where` | object | Optional exact-match filters: `values` maps column names to scalar values or null; `tags` is an array of strings |
+| `columns` | array | Optional column names to include |
+| `limit` | integer | Max rows to return, 1–100 (default 50) |
+| `cursor` | string | Pass `next_cursor` exactly as returned to keep paging through the same version |
+
+### `raindrop_upload_dataset`
+
+Create a dataset by slug or write a batch of rows to an existing dataset. Give rows stable IDs if you may retry; omitting an ID generates one. Except in `merge` mode, each row must supply every dataset column. A validation failure reports the bad rows and saves nothing.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dataset` | string | Required slug, at most 64 characters; lowercase letters and digits separated by single dashes |
+| `name` | string | Optional display name for a new dataset, 1–200 characters |
+| `description` | string | Optional description for a new dataset, up to 2,000 characters |
+| `column_roles` | object | Optional map from column names to roles. Use at most one `input`; mark an expected `output` with `is_reference: true`. A `label` needs a type: `boolean`, `score` (1–5), `number`, or `preference`. Untagged columns are metadata. |
+| `rows` | array | Optional batch of up to 1,000 rows, each `{id?, values, tags?}`. `values` maps column names to cell values. |
+| `mode` | string | `upsert` (default) writes whole rows and keeps unlisted rows. `replace` drops unlisted rows. `merge` changes only supplied cells and tags. |
+| `issue` | string | Optional issue UUID to link to the dataset |
+| `expected_version_id` | string | Optional version ID to reject a write based on stale data |
+
+Row writes return a `version_id` and `status`. A new version can be `pending` while Raindrop applies it. Read that version with `read_dataset` once it is ready. If the write reports a version conflict, read the current version and rebuild the change before retrying.
+
+### `raindrop_update_dataset_rows`
+
+Patch cells or tags on existing rows. Omitted cells and tags stay unchanged. Use `null` to clear a cell and `tags: []` to clear tags. Returns the version ID and status.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dataset` | string | Required dataset slug |
+| `rows` | array | Required 1–1,000 patches, each `{id, values?, tags?}` |
+| `expected_version_id` | string | Optional version ID to reject a write based on stale data |
+
+### `raindrop_delete_dataset_rows`
+
+Remove rows in a new version. Older versions still contain those rows. Returns the version ID and status.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `dataset` | string | Required dataset slug |
+| `row_ids` | array | Required 1–1,000 row IDs to remove |
+| `expected_version_id` | string | Optional version ID to reject a write based on stale data |
+
+### `raindrop_delete_dataset`
+
+Permanently delete whole datasets, including all versions, rows, and saved event copies. Returns the deleted slugs in `deleted`. To remove individual rows without erasing history, use `delete_dataset_rows` instead.
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `datasets` | array | Required 1–50 dataset slugs to delete |
 
 ### `raindrop_create_dataset`
 
